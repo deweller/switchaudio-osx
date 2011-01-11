@@ -24,6 +24,10 @@ AudioSwitcher [-a] [-c] [-t type] [-n] -s device_name
  - **-s** _device_name_ : sets the audio device to the given device by name
 
 
+Thanks
+-------
+
+Thanks to Christian Zuckschwerdt for migrating this to github and adding the next option.
 
 License
 -------
