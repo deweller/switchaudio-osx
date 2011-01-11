@@ -28,7 +28,7 @@
 /* Begin PBXFileReference section */
 		08FB7796FE84155DC02AAC07 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		097DBE83FE8419DDC02AAC07 /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = /System/Library/Frameworks/CoreServices.framework; sourceTree = "<absolute>"; };
-		8DD76F8E0486A9BA00D96B5E /* SwitchAudioSource */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = SwitchAudioSource; sourceTree = BUILT_PRODUCTS_DIR; };
+		8DD76F8E0486A9BA00D96B5E /* AudioSwitcher */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = AudioSwitcher; sourceTree = BUILT_PRODUCTS_DIR; };
 		A822E83C0E9A8F4A00B0E78B /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = /System/Library/Frameworks/CoreAudio.framework; sourceTree = "<absolute>"; };
 		A8680A7B0E9C2CB700D761D6 /* audio_switch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = audio_switch.h; sourceTree = "<group>"; };
 		A8680A7C0E9C2CB700D761D6 /* audio_switch.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = audio_switch.c; sourceTree = "<group>"; };
@@ -79,7 +79,7 @@
 		1A8B4A8EFE9D542A11CA2CBB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8DD76F8E0486A9BA00D96B5E /* SwitchAudioSource */,
+				8DD76F8E0486A9BA00D96B5E /* AudioSwitcher */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,7 +102,7 @@
 			name = SwitchAudioSource;
 			productInstallPath = "$(HOME)/bin";
 			productName = AudioSwitcher;
-			productReference = 8DD76F8E0486A9BA00D96B5E /* SwitchAudioSource */;
+			productReference = 8DD76F8E0486A9BA00D96B5E /* AudioSwitcher */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
