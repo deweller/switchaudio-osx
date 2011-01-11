@@ -45,7 +45,8 @@ enum {
 	kFunctionSetDevice   = 1,
 	kFunctionShowHelp    = 2,
 	kFunctionShowAll     = 3,
-	kFunctionShowCurrent = 4
+	kFunctionShowCurrent = 4,
+	kFunctionCycleNext   = 5
 };
 
 
@@ -58,6 +59,7 @@ ASDeviceType getDeviceType(AudioDeviceID deviceID);
 char *deviceTypeName(ASDeviceType device_type);
 void showCurrentlySelectedDeviceID(ASDeviceType typeRequested);
 AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType typeRequested);
+AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested);
 void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
 void showAllDevices(ASDeviceType typeRequested);
 

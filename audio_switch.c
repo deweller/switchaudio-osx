@@ -31,7 +31,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 
 void showUsage(const char * appName) {
-	printf("Usage: %s [-a] [-c] [-t type] -s device_name\n  -a             : shows all devices\n  -c             : shows current device\n\n  -t type        : device type (input/output/system).  Defaults to output.\n  -s device_name : sets the audio device to the given device by name\n\n",appName);
+	printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name\n  -a             : shows all devices\n  -c             : shows current device\n\n  -t type        : device type (input/output/system).  Defaults to output.\n  -n             : cycles the audio device to the next one\n  -s device_name : sets the audio device to the given device by name\n\n",appName);
 }
 
 int runAudioSwitch(int argc, const char * argv[]) {
@@ -41,7 +41,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	int function = 0;
 
 	int c;
-	while ((c = getopt(argc, (char **)argv, "hact:s:")) != -1) {
+	while ((c = getopt(argc, (char **)argv, "hacnt:s:")) != -1) {
 		switch (c) {
 			case 'a':
 				// show all
@@ -56,7 +56,12 @@ int runAudioSwitch(int argc, const char * argv[]) {
 				// show help
 				function = kFunctionShowHelp;
 				break;
-
+				
+			case 'n':
+				// cycle to the next audio device
+				function = kFunctionCycleNext;
+				break;
+				
 			case 's':
 				// set the requestedDeviceName
 				function = kFunctionSetDevice;
@@ -105,6 +110,31 @@ int runAudioSwitch(int argc, const char * argv[]) {
 		return 0;
 	}
 
+	if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeOutput;
+
+	if (function == kFunctionCycleNext) {
+		// get current device of requested type
+		chosenDeviceID = getCurrentlySelectedDeviceID(typeRequested);
+		if (chosenDeviceID == kAudioDeviceUnknown) {
+			printf("Could not find current audio device of type %s.  Nothing was changed.\n", deviceTypeName(typeRequested));
+			return 1;
+		}
+
+		// find next device to current device
+		chosenDeviceID = getNextDeviceID(chosenDeviceID, typeRequested);
+		if (chosenDeviceID == kAudioDeviceUnknown) {
+			printf("Could not find next audio device of type %s.  Nothing was changed.\n", deviceTypeName(typeRequested));
+			return 1;
+		}
+		
+		// choose the requested audio device
+		setDevice(chosenDeviceID, typeRequested);
+		getDeviceName(chosenDeviceID, requestedDeviceName);
+		printf("%s audio device set to \"%s\"\n", deviceTypeName(typeRequested), requestedDeviceName);
+		
+		return 0;
+	}
+	
 	if (function != kFunctionSetDevice) {
 		printf("Please specify audio device.\n");
 		showUsage(argv[0]);
@@ -112,7 +142,6 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	}
 	
 	// find the id of the requested device
-	if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeOutput;
 	chosenDeviceID = getRequestedDeviceID(requestedDeviceName, typeRequested);
 	if (chosenDeviceID == kAudioDeviceUnknown) {
 		printf("Could not find an audio device named \"%s\" of type %s.  Nothing was changed.\n",requestedDeviceName, deviceTypeName(typeRequested));
@@ -220,6 +249,45 @@ AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType type
 	}
 	
 	return kAudioDeviceUnknown;
+}
+
+AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested) {
+	UInt32 propertySize;
+	AudioDeviceID dev_array[64];
+	int numberOfDevices = 0;
+	AudioDeviceID first_dev = kAudioDeviceUnknown;
+	int found = -1;
+	
+	AudioHardwareGetPropertyInfo(kAudioHardwarePropertyDevices, &propertySize, NULL);
+	// printf("propertySize=%d\n",propertySize);
+	
+	AudioHardwareGetProperty(kAudioHardwarePropertyDevices, &propertySize, dev_array);
+	numberOfDevices = (propertySize / sizeof(AudioDeviceID));
+	// printf("numberOfDevices=%d\n",numberOfDevices);
+	
+	for(int i = 0; i < numberOfDevices; ++i) {
+		switch(typeRequested) {
+			case kAudioTypeInput:
+			case kAudioTypeOutput:
+				if (getDeviceType(dev_array[i]) != typeRequested) continue;
+				break;
+			case kAudioTypeSystemOutput:
+				if (getDeviceType(dev_array[i]) != kAudioTypeOutput) continue;
+				break;
+		}
+
+		if (first_dev == kAudioDeviceUnknown) {
+			first_dev = dev_array[i];
+		}
+		if (found >= 0) {
+			return dev_array[i];
+		}
+		if (dev_array[i] == currentDeviceID) {
+			found = i;
+		}
+	}
+	
+	return first_dev;
 }
 
 void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
