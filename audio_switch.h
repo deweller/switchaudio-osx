@@ -56,6 +56,8 @@ int runAudioSwitch(int argc, const char * argv[]);
 AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested);
 void getDeviceName(AudioDeviceID deviceID, char * deviceName);
 ASDeviceType getDeviceType(AudioDeviceID deviceID);
+bool isAnInputDevice(AudioDeviceID deviceID);
+bool isAnOutputDevice(AudioDeviceID deviceID);
 char *deviceTypeName(ASDeviceType device_type);
 void showCurrentlySelectedDeviceID(ASDeviceType typeRequested);
 AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType typeRequested);
