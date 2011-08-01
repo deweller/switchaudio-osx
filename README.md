@@ -10,7 +10,7 @@ This utility switches the audio source for Mac OS X.
 
 You specify the name of the audio source, such as Built-in Digital Output, and the utility switches the source immediately without any GUI interaction.
 
-This is a command-line utility only and has no graphical user interface.
+This is a command-line utility only and has no graphical user interface.  Works with Mac OS X 10.7 Lion.
 
 Usage
 -----
@@ -33,7 +33,7 @@ License
 -------
 
 MIT License, see license.txt  
-Copyright (c) 2008 Devon Weller <wellerco@gmail.com>  
+Copyright (c) 2008-2011 Devon Weller <wellerco@gmail.com>  
 Copyright (c) 2011 Christian Zuckschwerdt <zany@triq.net>
 
 Imported from SVN at http://code.google.com/p/switchaudio-osx/
