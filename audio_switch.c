@@ -31,7 +31,13 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 
 void showUsage(const char * appName) {
-	printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name\n  -a             : shows all devices\n  -c             : shows current device\n\n  -t type        : device type (input/output/system).  Defaults to output.\n  -n             : cycles the audio device to the next one\n  -s device_name : sets the audio device to the given device by name\n\n",appName);
+	printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name\n"
+           "  -a             : shows all devices\n"
+           "  -c             : shows current device\n\n"
+           
+           "  -t type        : device type (input/output/system).  Defaults to output.\n"
+           "  -n             : cycles the audio device to the next one\n"
+           "  -s device_name : sets the audio device to the given device by name\n\n",appName);
 }
 
 int runAudioSwitch(int argc, const char * argv[]) {
@@ -172,6 +178,7 @@ AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested) {
 		case kAudioTypeSystemOutput:
 			AudioHardwareGetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, &propertySize, &deviceID);
 			break;
+        default: break;
 			
 	}
 	
@@ -265,6 +272,7 @@ AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType type
 			case kAudioTypeSystemOutput:
 				if (getDeviceType(dev_array[i]) != kAudioTypeOutput) continue;
 				break;
+            default: break;
 		}
 		
 		getDeviceName(dev_array[i], deviceName);
@@ -304,6 +312,7 @@ AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRe
 			case kAudioTypeSystemOutput:
 				if (getDeviceType(dev_array[i]) != kAudioTypeOutput) continue;
 				break;
+            default: break;
 		}
 
 		if (first_dev == kAudioDeviceUnknown) {
@@ -333,6 +342,7 @@ void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
 		case kAudioTypeSystemOutput:
 			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
 			break;
+        default: break;
 	}
 	
 }
@@ -366,6 +376,7 @@ void showAllDevices(ASDeviceType typeRequested) {
                 device_type = getDeviceType(dev_array[i]);
 				if (device_type != kAudioTypeOutput) continue;
 				break;
+            default: break;
 		}
 		
 		getDeviceName(dev_array[i], deviceName);
