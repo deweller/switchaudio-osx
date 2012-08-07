@@ -7,3 +7,4 @@ build
 *.pbxuser
 *.perspective
 *.perspectivev3
+*.xcuserdatad

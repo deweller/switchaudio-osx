@@ -10,7 +10,11 @@ This utility switches the audio source for Mac OS X.
 
 You specify the name of the audio source, such as Built-in Digital Output, and the utility switches the source immediately without any GUI interaction.
 
-This is a command-line utility only and has no graphical user interface.  Works with Mac OS 10.7 Lion.
+This is a command-line utility only and has no graphical user interface.  Works with Mac OS 10.7 Lion and 10.8 Mountain Lion.
+
+Installing Xcode Command Line Tools
+-----------------------------------
+switchaudio-osx requires command line tools to be installed from OS X. To install command line tools in Xcode 4.4, from the menubar go to Xcode > Preferences and click the Downloads tab. Click "Install" on the line that reads "Command Line Tools". 
 
 Usage
 -----
