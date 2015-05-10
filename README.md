@@ -19,10 +19,8 @@ switchaudio-osx requires command line tools to be installed from OS X. To instal
 Usage
 -----
 
-AudioSwitcher [-a] [-c] [-t type] [-n] -s device_name
-
-or
-
+AudioSwitcher [-a] [-c] [-t type] [-n] -s device_name  
+or  
 AudioSwitcher -e device_id1=0.5,0.5:device_id2=0.7,0.8
 
  - **-a**               : Shows all devices.
@@ -42,8 +40,8 @@ License
 -------
 
 MIT License, see license.txt
-Copyright (c) 2008-2011 Devon Weller <wellerco@gmail.com>
-Copyright (c) 2011 Christian Zuckschwerdt <zany@triq.net>
+Copyright (c) 2008-2011 Devon Weller <wellerco@gmail.com>  
+Copyright (c) 2011 Christian Zuckschwerdt <zany@triq.net>  
 Copyright (c) 2015 [Ziga Zupanec](https://github.com/agiz/) <ziga.zupanec@gmail.com>
 
 Imported from SVN at http://code.google.com/p/switchaudio-osx/
