@@ -19,7 +19,7 @@ switchaudio-osx requires command line tools to be installed from OS X. To instal
 Usage
 -----
 
-AudioSwitcher [-a] [-c] [-t type] [-n] -s device_name  
+SwitchAudioSource [-a] [-c] [-t type] [-n] -s device_name  
 
  - **-a**               : shows all devices
  - **-c**               : shows current device
