@@ -10,7 +10,7 @@ This utility switches the audio source for Mac OS X.
 
 You specify the name of the audio source, such as Built-in Digital Output, and the utility switches the source immediately without any GUI interaction.
 
-This is a command-line utility only and has no graphical user interface.  Works with Mac OS 10.7 Lion and 10.8 Mountain Lion.
+This is a command-line utility only and has no graphical user interface.  Tested on OS 10.7 - 10.10.
 
 Installing from homebrew
 ------------------------
