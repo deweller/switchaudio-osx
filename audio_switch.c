@@ -179,6 +179,12 @@ int runAudioSwitch(int argc, const char * argv[]) {
         }
         strcpy(printableDeviceName, requestedDeviceName);
     }
+
+    if (!chosenDeviceID) {
+        printf("Please specify audio device.\n");
+        showUsage(argv[0]);
+        return 1;
+    }
 	
 	// choose the requested audio device
 	setDevice(chosenDeviceID, typeRequested);
