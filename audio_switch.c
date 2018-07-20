@@ -37,6 +37,7 @@ void showUsage(const char * appName) {
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
            "  -t type        : device type (input/output/system).  Defaults to output.\n"
            "  -n             : cycles the audio device to the next one\n"
+           "  -i device_id   : sets the audio device to the given device by id\n"
            "  -s device_name : sets the audio device to the given device by name\n\n",appName);
 }
 
