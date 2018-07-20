@@ -31,7 +31,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 
 void showUsage(const char * appName) {
-	printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name\n"
+	printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name | -i device_id\n"
            "  -a             : shows all devices\n"
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
