@@ -48,11 +48,12 @@ typedef enum {
 } ASOutputType;
 
 enum {
-	kFunctionSetDevice   = 1,
-	kFunctionShowHelp    = 2,
-	kFunctionShowAll     = 3,
-	kFunctionShowCurrent = 4,
-	kFunctionCycleNext   = 5
+	kFunctionSetDeviceByName = 1,
+	kFunctionShowHelp        = 2,
+	kFunctionShowAll         = 3,
+	kFunctionShowCurrent     = 4,
+	kFunctionCycleNext       = 5,
+    kFunctionSetDeviceByID   = 6
 };
 
 
