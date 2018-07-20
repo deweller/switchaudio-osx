@@ -396,15 +396,16 @@ void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
 		}
 
 		getDeviceName(dev_array[i], deviceName);
+
 		switch(outputRequested) {
 			case kFormatHuman:
-				printf("%s (%s)\n",deviceName,deviceTypeName(device_type));
+				printf("%s (%s) (ID: %u)\n",deviceName,deviceTypeName(device_type),dev_array[i]);
 				break;
 			case kFormatCLI:
-				printf("%s,%s\n",deviceName,deviceTypeName(device_type));
+				printf("%s,%s,%u\n",deviceName,deviceTypeName(device_type),dev_array[i]);
 				break;
 			case kFormatJSON:
-				printf("{\"name\": \"%s\", \"type\": \"%s\"}\n",deviceName,deviceTypeName(device_type));
+				printf("{\"name\": \"%s\", \"type\": \"%s\", \"id\": \"%u\"}\n",deviceName,deviceTypeName(device_type),dev_array[i]);
 				break;
 			default:
 				break;
