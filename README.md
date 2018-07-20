@@ -10,7 +10,7 @@ This utility switches the audio source for Mac OS X.
 
 You specify the name of the audio source, such as Built-in Digital Output, and the utility switches the source immediately without any GUI interaction.
 
-This is a command-line utility only and has no graphical user interface.  Tested on OS 10.7 - 10.10.
+This is a command-line utility only and has no graphical user interface.  Tested on OS 10.7 - 10.13.
 
 Installing from homebrew
 ------------------------
@@ -25,12 +25,13 @@ switchaudio-osx requires command line tools to be installed from OS X. To instal
 Usage
 -----
 
-SwitchAudioSource [-a] [-c] [-t type] [-n] -s device_name  
+SwitchAudioSource [-a] [-c] [-t type] [-n] -s device\_name | -i device\_id 
 
  - **-a**               : shows all devices
  - **-c**               : shows current device
  - **-t** _type_        : device type (input/output/system).  Defaults to output.
  - **-n**               : cycles the audio device to the next one
+ - **-i** _device_id_   : sets the audio device to the given device by id
  - **-s** _device_name_ : sets the audio device to the given device by name
 
 
