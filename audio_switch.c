@@ -44,26 +44,26 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	char requestedDeviceName[256];
 	AudioDeviceID chosenDeviceID = kAudioDeviceUnknown;
 	ASDeviceType typeRequested = kAudioTypeUnknown;
-    ASOutputType outputRequested = kFormatHuman;
-    char * FORMAT_CLI = "cli";
-    char * FORMAT_JSON = "json";
-    char * format;
+	ASOutputType outputRequested = kFormatHuman;
 	int function = 0;
 
 	int c;
 	while ((c = getopt(argc, (char **)argv, "hacntf:s:")) != -1) {
 		switch (c) {
-            case 'f':
-                // format
-                format = strdup(optarg);
-                if (strncmp(format, FORMAT_CLI, 6) == 0) {
-                    outputRequested = kFormatCLI;
-                } else if (strncmp(format, FORMAT_JSON, 6) == 0) {
-                    outputRequested = kFormatJSON;
-                } else {
-                    outputRequested = kFormatHuman;
-                }
-                break;
+			case 'f':
+				// format
+				if (strcmp(optarg, "cli") == 0) {
+					outputRequested = kFormatCLI;
+				} else if (strcmp(optarg, "json") == 0) {
+					outputRequested = kFormatJSON;
+				} else if (strcmp(optarg, "human") == 0) {
+					outputRequested = kFormatHuman;
+				} else {
+					printf("Unknown format %s\n", optarg);
+					showUsage(argv[0]);
+					return 1;
+				}
+				break;
 			case 'a':
 				// show all
 				function = kFunctionShowAll;
@@ -393,19 +393,20 @@ void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
 				break;
             default: break;
 		}
-		
-		getDeviceName(dev_array[i], deviceName);
-        switch(outputRequested) {
-            case kFormatHuman:
-                printf("%s (%s)\n",deviceName,deviceTypeName(device_type));
-                break;
-            case kFormatCLI:
-                printf("%s,%s\n",deviceName,deviceTypeName(device_type));
-            case kFormatJSON:
-                printf("{\"name\": \"%s\", \"type\": \"%s\"}\n",deviceName,deviceTypeName(device_type));
-                break;
 
-            default: break;
-        }
+		getDeviceName(dev_array[i], deviceName);
+		switch(outputRequested) {
+			case kFormatHuman:
+				printf("%s (%s)\n",deviceName,deviceTypeName(device_type));
+				break;
+			case kFormatCLI:
+				printf("%s,%s\n",deviceName,deviceTypeName(device_type));
+				break;
+			case kFormatJSON:
+				printf("{\"name\": \"%s\", \"type\": \"%s\"}\n",deviceName,deviceTypeName(device_type));
+				break;
+			default:
+				break;
+			}
 	}
 }
