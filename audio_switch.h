@@ -34,12 +34,18 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <CoreAudio/CoreAudio.h>
 
 
-typedef enum { 
-  	kAudioTypeUnknown = 0, 
-    kAudioTypeInput   = 1, 
-    kAudioTypeOutput  = 2,
-    kAudioTypeSystemOutput = 3
+typedef enum {
+	kAudioTypeUnknown = 0,
+	kAudioTypeInput   = 1,
+	kAudioTypeOutput  = 2,
+	kAudioTypeSystemOutput = 3
 } ASDeviceType;
+
+typedef enum {
+	kFormatHuman = 0,
+	kFormatCLI = 1,
+	kFormatJSON = 2,
+} ASOutputType;
 
 enum {
 	kFunctionSetDevice   = 1,
@@ -63,5 +69,4 @@ void showCurrentlySelectedDeviceID(ASDeviceType typeRequested);
 AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType typeRequested);
 AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested);
 void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
-void showAllDevices(ASDeviceType typeRequested);
-
+void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested);
