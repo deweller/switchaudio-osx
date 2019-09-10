@@ -8,3 +8,5 @@ build
 *.perspective
 *.perspectivev3
 *.xcuserdatad
+
+xcshareddata
