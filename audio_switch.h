@@ -41,6 +41,11 @@ typedef enum {
     kAudioTypeSystemOutput = 3
 } ASDeviceType;
 
+typedef enum {
+    kFormatHuman = 0,
+    kFormatCLI = 1
+} ASOutputType;
+
 enum {
 	kFunctionSetDevice   = 1,
 	kFunctionShowHelp    = 2,
@@ -63,5 +68,5 @@ void showCurrentlySelectedDeviceID(ASDeviceType typeRequested);
 AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType typeRequested);
 AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested);
 void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
-void showAllDevices(ASDeviceType typeRequested);
+void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested);
 
