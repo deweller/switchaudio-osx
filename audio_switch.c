@@ -34,7 +34,7 @@ void showUsage(const char * appName) {
 	printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name\n"
            "  -a             : shows all devices\n"
            "  -c             : shows current device\n\n"
-           "  -f format      : output format (cli/human). Defaults to human.\n"
+           "  -f format      : output format (cli/human/json). Defaults to human.\n"
            "  -t type        : device type (input/output/system).  Defaults to output.\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -s device_name : sets the audio device to the given device by name\n\n",appName);
@@ -46,6 +46,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	ASDeviceType typeRequested = kAudioTypeUnknown;
     ASOutputType outputRequested = kFormatHuman;
     char * FORMAT_CLI = "cli";
+    char * FORMAT_JSON = "json";
     char * format;
 	int function = 0;
 
@@ -57,6 +58,8 @@ int runAudioSwitch(int argc, const char * argv[]) {
                 format = strdup(optarg);
                 if (strncmp(format, FORMAT_CLI, 6) == 0) {
                     outputRequested = kFormatCLI;
+                } else if (strncmp(format, FORMAT_JSON, 6) == 0) {
+                    outputRequested = kFormatJSON;
                 } else {
                     outputRequested = kFormatHuman;
                 }
@@ -398,10 +401,11 @@ void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
                 break;
             case kFormatCLI:
                 printf("%s,%s\n",deviceName,deviceTypeName(device_type));
+            case kFormatJSON:
+                printf("{\"name\": \"%s\", \"type\": \"%s\"}\n",deviceName,deviceTypeName(device_type));
                 break;
 
             default: break;
         }
-		
 	}
 }

@@ -43,7 +43,8 @@ typedef enum {
 
 typedef enum {
     kFormatHuman = 0,
-    kFormatCLI = 1
+    kFormatCLI = 1,
+    kFormatJSON = 2,
 } ASOutputType;
 
 enum {
