@@ -48,7 +48,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	int function = 0;
 
 	int c;
-	while ((c = getopt(argc, (char **)argv, "hacntf:s:")) != -1) {
+	while ((c = getopt(argc, (char **)argv, "hacnt:f:s:")) != -1) {
 		switch (c) {
 			case 'f':
 				// format
