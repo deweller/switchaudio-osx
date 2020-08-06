@@ -29,6 +29,7 @@ SwitchAudioSource [-a] [-c] [-t type] [-n] -s device\_name | -i device\_id | -u 
 
  - **-a**               : shows all devices
  - **-c**               : shows current device
+ - **-f** _format_      : output format (cli/human/json). Defaults to human.
  - **-t** _type_        : device type (input/output/system).  Defaults to output.
  - **-n**               : cycles the audio device to the next one
  - **-i** _device_id_   : sets the audio device to the given device by id
