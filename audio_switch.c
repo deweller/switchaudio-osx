@@ -31,13 +31,14 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 
 void showUsage(const char * appName) {
-	printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name | -i device_id\n"
+	printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name | -i device_id | -u device_uid\n"
            "  -a             : shows all devices\n"
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
            "  -t type        : device type (input/output/system).  Defaults to output.\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
+           "  -u device_uid  : sets the audio device to the given device by uid or a substring of the uid\n"
            "  -s device_name : sets the audio device to the given device by name\n\n",appName);
 }
 
@@ -45,13 +46,14 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	char requestedDeviceName[256];
     char printableDeviceName[256];
     int requestedDeviceID;
+    char requestedDeviceUID[256];
 	AudioDeviceID chosenDeviceID = kAudioDeviceUnknown;
 	ASDeviceType typeRequested = kAudioTypeUnknown;
 	ASOutputType outputRequested = kFormatHuman;
 	int function = 0;
 
 	int c;
-	while ((c = getopt(argc, (char **)argv, "hacnt:f:i:s:")) != -1) {
+	while ((c = getopt(argc, (char **)argv, "hacnt:f:i:u:s:")) != -1) {
 		switch (c) {
 			case 'f':
 				// format
@@ -91,6 +93,12 @@ int runAudioSwitch(int argc, const char * argv[]) {
 				function = kFunctionSetDeviceByID;
                 requestedDeviceID = atoi(optarg);
 				break;
+
+            case 'u':
+                // set the requestedDeviceUID
+                function = kFunctionSetDeviceByUID;
+                strcpy(requestedDeviceUID, optarg);
+                break;
 
             case 's':
                 // set the requestedDeviceName
@@ -180,6 +188,16 @@ int runAudioSwitch(int argc, const char * argv[]) {
         strcpy(printableDeviceName, requestedDeviceName);
     }
 
+    if (function == kFunctionSetDeviceByUID) {
+        // find the id of the requested device
+        chosenDeviceID = getRequestedDeviceIDFromUIDSubstring(requestedDeviceUID, typeRequested);
+        if (chosenDeviceID == kAudioDeviceUnknown) {
+            printf("Could not find an audio device with UID \"%s\" of type %s.  Nothing was changed.\n", requestedDeviceUID, deviceTypeName(typeRequested));
+            return 1;
+        }
+        sprintf(printableDeviceName, "Device with UID: %s", getDeviceUID(chosenDeviceID));
+    }
+
     if (!chosenDeviceID) {
         printf("Please specify audio device.\n");
         showUsage(argv[0]);
@@ -193,6 +211,64 @@ int runAudioSwitch(int argc, const char * argv[]) {
     return 0;
 }
 
+char * getDeviceUID(AudioDeviceID deviceID) {
+    CFStringRef deviceUID = NULL;
+    UInt32 dataSize = sizeof(deviceUID);
+    AudioObjectPropertyAddress propertyAddress = {
+        kAudioHardwarePropertyDevices,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    };
+    
+    propertyAddress.mSelector = kAudioDevicePropertyDeviceUID;
+    
+    AudioObjectGetPropertyData(deviceID, &propertyAddress, 0, NULL, &dataSize, &deviceUID);
+            
+    char * deviceUID_string = CFStringGetCStringPtr(deviceUID, kCFStringEncodingASCII);
+    
+    CFRelease(deviceUID);
+    
+    return deviceUID_string;
+}
+
+
+AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, ASDeviceType typeRequested) {
+    UInt32 propertySize;
+    AudioDeviceID dev_array[64];
+    int numberOfDevices = 0;
+
+    AudioHardwareGetPropertyInfo(kAudioHardwarePropertyDevices, &propertySize, NULL);
+    // printf("propertySize=%d\n",propertySize);
+
+    AudioHardwareGetProperty(kAudioHardwarePropertyDevices, &propertySize, dev_array);
+    numberOfDevices = (propertySize / sizeof(AudioDeviceID));
+    // printf("numberOfDevices=%d\n",numberOfDevices);
+
+    for(int i = 0; i < numberOfDevices; ++i) {
+        switch(typeRequested) {
+            case kAudioTypeInput:
+                if (!isAnInputDevice(dev_array[i])) continue;
+                break;
+
+            case kAudioTypeOutput:
+                if (!isAnOutputDevice(dev_array[i])) continue;
+                break;
+
+            case kAudioTypeSystemOutput:
+                if (getDeviceType(dev_array[i]) != kAudioTypeOutput) continue;
+                break;
+            default: break;
+        }
+
+        char * deviceUID = getDeviceUID(dev_array[i]);
+        
+        if (strstr(deviceUID, requestedDeviceUID) != NULL) {
+            return dev_array[i];
+        }
+    }
+
+    return kAudioDeviceUnknown;
+}
 
 AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested) {
 	UInt32 propertySize;
@@ -274,7 +350,7 @@ void showCurrentlySelectedDeviceID(ASDeviceType typeRequested) {
 	
 	currentDeviceID = getCurrentlySelectedDeviceID(typeRequested);
 	getDeviceName(currentDeviceID, currentDeviceName);
-	printf("%s\n",currentDeviceName);
+	printf("%s (ID: %u) (UID: %s)\n", currentDeviceName, currentDeviceID, getDeviceUID(currentDeviceID));
 }
 
 
@@ -415,13 +491,13 @@ void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
 
 		switch(outputRequested) {
 			case kFormatHuman:
-				printf("%s (%s) (ID: %u)\n",deviceName,deviceTypeName(device_type),dev_array[i]);
+				printf("%s (%s) (ID: %u) (UID: %s)\n",deviceName,deviceTypeName(device_type),dev_array[i], getDeviceUID(dev_array[i]));
 				break;
 			case kFormatCLI:
-				printf("%s,%s,%u\n",deviceName,deviceTypeName(device_type),dev_array[i]);
+				printf("%s,%s,%u,%s\n",deviceName,deviceTypeName(device_type),dev_array[i],getDeviceUID(dev_array[i]));
 				break;
 			case kFormatJSON:
-				printf("{\"name\": \"%s\", \"type\": \"%s\", \"id\": \"%u\"}\n",deviceName,deviceTypeName(device_type),dev_array[i]);
+				printf("{\"name\": \"%s\", \"type\": \"%s\", \"id\": \"%u\", \"uid\": \"%s\"}\n",deviceName,deviceTypeName(device_type),dev_array[i],getDeviceUID(dev_array[i]));
 				break;
 			default:
 				break;

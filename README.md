@@ -25,13 +25,14 @@ switchaudio-osx requires command line tools to be installed from OS X. To instal
 Usage
 -----
 
-SwitchAudioSource [-a] [-c] [-t type] [-n] -s device\_name | -i device\_id 
+SwitchAudioSource [-a] [-c] [-t type] [-n] -s device\_name | -i device\_id | -u device\_uid 
 
  - **-a**               : shows all devices
  - **-c**               : shows current device
  - **-t** _type_        : device type (input/output/system).  Defaults to output.
  - **-n**               : cycles the audio device to the next one
  - **-i** _device_id_   : sets the audio device to the given device by id
+ - **-u** _device_uid_   : sets the audio device to the given device by uid or a substring of the uid
  - **-s** _device_name_ : sets the audio device to the given device by name
 
 

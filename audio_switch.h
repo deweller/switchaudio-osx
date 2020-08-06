@@ -53,13 +53,16 @@ enum {
 	kFunctionShowAll         = 3,
 	kFunctionShowCurrent     = 4,
 	kFunctionCycleNext       = 5,
-    kFunctionSetDeviceByID   = 6
+    kFunctionSetDeviceByID   = 6,
+    kFunctionSetDeviceByUID  = 7
 };
 
 
 
 void showUsage(const char * appName);
 int runAudioSwitch(int argc, const char * argv[]);
+char * getDeviceUID(AudioDeviceID deviceID);
+AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, ASDeviceType typeRequested);
 AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested);
 void getDeviceName(AudioDeviceID deviceID, char * deviceName);
 ASDeviceType getDeviceType(AudioDeviceID deviceID);
