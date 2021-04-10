@@ -144,7 +144,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	}
 	if (function == kFunctionShowCurrent) {
 		if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeOutput;
-		showCurrentlySelectedDeviceID(typeRequested);
+		showCurrentlySelectedDeviceID(typeRequested, outputRequested);
 		return 0;
 	}
 
@@ -344,13 +344,26 @@ char *deviceTypeName(ASDeviceType device_type) {
 	
 }
 
-void showCurrentlySelectedDeviceID(ASDeviceType typeRequested) {
+void showCurrentlySelectedDeviceID(ASDeviceType typeRequested, ASOutputType outputRequested) {
 	AudioDeviceID currentDeviceID = kAudioDeviceUnknown;
 	char currentDeviceName[256];
 	
 	currentDeviceID = getCurrentlySelectedDeviceID(typeRequested);
 	getDeviceName(currentDeviceID, currentDeviceName);
-	printf("%s (ID: %u) (UID: %s)\n", currentDeviceName, currentDeviceID, getDeviceUID(currentDeviceID));
+
+	switch(outputRequested) {
+		case kFormatHuman:
+		    printf("%s\n",currentDeviceName);
+			break;
+		case kFormatCLI:
+			printf("%s,%s,%u,%s\n",currentDeviceName,deviceTypeName(typeRequested),currentDeviceID,getDeviceUID(currentDeviceID));
+			break;
+		case kFormatJSON:
+			printf("{\"name\": \"%s\", \"type\": \"%s\", \"id\": \"%u\", \"uid\": \"%s\"}\n",currentDeviceName,deviceTypeName(typeRequested),currentDeviceID,getDeviceUID(currentDeviceID));
+			break;
+		default:
+			break;
+	}
 }
 
 
@@ -491,7 +504,7 @@ void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
 
 		switch(outputRequested) {
 			case kFormatHuman:
-				printf("%s (%s) (ID: %u) (UID: %s)\n",deviceName,deviceTypeName(device_type),dev_array[i], getDeviceUID(dev_array[i]));
+			    printf("%s\n",deviceName);
 				break;
 			case kFormatCLI:
 				printf("%s,%s,%u,%s\n",deviceName,deviceTypeName(device_type),dev_array[i],getDeviceUID(dev_array[i]));

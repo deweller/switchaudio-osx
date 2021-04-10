@@ -69,7 +69,7 @@ ASDeviceType getDeviceType(AudioDeviceID deviceID);
 bool isAnInputDevice(AudioDeviceID deviceID);
 bool isAnOutputDevice(AudioDeviceID deviceID);
 char *deviceTypeName(ASDeviceType device_type);
-void showCurrentlySelectedDeviceID(ASDeviceType typeRequested);
+void showCurrentlySelectedDeviceID(ASDeviceType typeRequested, ASOutputType outputRequested);
 AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType typeRequested);
 AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested);
 void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
