@@ -48,24 +48,28 @@ typedef enum {
 } ASOutputType;
 
 enum {
-	kFunctionSetDevice   = 1,
-	kFunctionShowHelp    = 2,
-	kFunctionShowAll     = 3,
-	kFunctionShowCurrent = 4,
-	kFunctionCycleNext   = 5
+	kFunctionSetDeviceByName = 1,
+	kFunctionShowHelp        = 2,
+	kFunctionShowAll         = 3,
+	kFunctionShowCurrent     = 4,
+	kFunctionCycleNext       = 5,
+    kFunctionSetDeviceByID   = 6,
+    kFunctionSetDeviceByUID  = 7
 };
 
 
 
 void showUsage(const char * appName);
 int runAudioSwitch(int argc, const char * argv[]);
+char * getDeviceUID(AudioDeviceID deviceID);
+AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, ASDeviceType typeRequested);
 AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested);
 void getDeviceName(AudioDeviceID deviceID, char * deviceName);
 ASDeviceType getDeviceType(AudioDeviceID deviceID);
 bool isAnInputDevice(AudioDeviceID deviceID);
 bool isAnOutputDevice(AudioDeviceID deviceID);
 char *deviceTypeName(ASDeviceType device_type);
-void showCurrentlySelectedDeviceID(ASDeviceType typeRequested);
+void showCurrentlySelectedDeviceID(ASDeviceType typeRequested, ASOutputType outputRequested);
 AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType typeRequested);
 AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested);
 void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
