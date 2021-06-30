@@ -35,7 +35,7 @@ void showUsage(const char * appName) {
            "  -a             : shows all devices\n"
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
-           "  -t type        : device type (input/output/system).  Defaults to output.\n"
+           "  -t type        : device type (input/output/system/all).  Defaults to output.\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
            "  -u device_uid  : sets the audio device to the given device by uid or a substring of the uid\n"
@@ -112,8 +112,10 @@ int runAudioSwitch(int argc, const char * argv[]) {
 					typeRequested = kAudioTypeInput;
 				} else if (strcmp(optarg, "output") == 0) {
 					typeRequested = kAudioTypeOutput;
-				} else if (strcmp(optarg, "system") == 0) {
-					typeRequested = kAudioTypeSystemOutput;
+                } else if (strcmp(optarg, "system") == 0) {
+                    typeRequested = kAudioTypeSystemOutput;
+                } else if (strcmp(optarg, "all") == 0) {
+                    typeRequested = kAudioTypeAll;
 				} else {
 					printf("Invalid device type \"%s\" specified.\n",optarg);
 					showUsage(argv[0]);
@@ -454,7 +456,7 @@ void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
 	UInt32 propertySize = sizeof(UInt32);
 
 	switch(typeRequested) {
-		case kAudioTypeInput: 
+		case kAudioTypeInput:
 			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
 			break;
 		case kAudioTypeOutput:
@@ -463,7 +465,12 @@ void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
 		case kAudioTypeSystemOutput:
 			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
 			break;
-        default: break;
+		case kAudioTypeAll:
+			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
+			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultOutputDevice, propertySize, &newDeviceID);
+			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
+			break;
+		default: break;
 	}
 	
 }
