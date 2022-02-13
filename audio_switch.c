@@ -211,7 +211,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
     return 0;
 }
 
-char * getDeviceUID(AudioDeviceID deviceID) {
+const char * getDeviceUID(AudioDeviceID deviceID) {
     CFStringRef deviceUID = NULL;
     UInt32 dataSize = sizeof(deviceUID);
     AudioObjectPropertyAddress propertyAddress = {
@@ -224,7 +224,7 @@ char * getDeviceUID(AudioDeviceID deviceID) {
     
     AudioObjectGetPropertyData(deviceID, &propertyAddress, 0, NULL, &dataSize, &deviceUID);
             
-    char * deviceUID_string = CFStringGetCStringPtr(deviceUID, kCFStringEncodingASCII);
+    const char * deviceUID_string = CFStringGetCStringPtr(deviceUID, kCFStringEncodingASCII);
     
     CFRelease(deviceUID);
     
@@ -260,7 +260,7 @@ AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, AS
             default: break;
         }
 
-        char * deviceUID = getDeviceUID(dev_array[i]);
+        const char * deviceUID = getDeviceUID(dev_array[i]);
         
         if (strstr(deviceUID, requestedDeviceUID) != NULL) {
             return dev_array[i];

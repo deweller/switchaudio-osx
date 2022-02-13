@@ -61,7 +61,7 @@ enum {
 
 void showUsage(const char * appName);
 int runAudioSwitch(int argc, const char * argv[]);
-char * getDeviceUID(AudioDeviceID deviceID);
+const char * getDeviceUID(AudioDeviceID deviceID);
 AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, ASDeviceType typeRequested);
 AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested);
 void getDeviceName(AudioDeviceID deviceID, char * deviceName);
