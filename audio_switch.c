@@ -44,9 +44,9 @@ void showUsage(const char * appName) {
 
 int runAudioSwitch(int argc, const char * argv[]) {
 	char requestedDeviceName[256];
-    char printableDeviceName[256];
-    int requestedDeviceID;
-    char requestedDeviceUID[256];
+	char printableDeviceName[256];
+	int requestedDeviceID;
+	char requestedDeviceUID[256];
 	AudioDeviceID chosenDeviceID = kAudioDeviceUnknown;
 	ASDeviceType typeRequested = kAudioTypeUnknown;
 	ASOutputType outputRequested = kFormatHuman;
@@ -91,20 +91,20 @@ int runAudioSwitch(int argc, const char * argv[]) {
 			case 'i':
 				// set the requestedDeviceID
 				function = kFunctionSetDeviceByID;
-                requestedDeviceID = atoi(optarg);
+				requestedDeviceID = atoi(optarg);
 				break;
 
-            case 'u':
-                // set the requestedDeviceUID
-                function = kFunctionSetDeviceByUID;
-                strcpy(requestedDeviceUID, optarg);
-                break;
+			case 'u':
+				// set the requestedDeviceUID
+				function = kFunctionSetDeviceByUID;
+				strcpy(requestedDeviceUID, optarg);
+				break;
 
-            case 's':
-                // set the requestedDeviceName
-                function = kFunctionSetDeviceByName;
-                strcpy(requestedDeviceName, optarg);
-                break;
+			case 's':
+				// set the requestedDeviceName
+				function = kFunctionSetDeviceByName;
+				strcpy(requestedDeviceName, optarg);
+				break;
 
 			case 't':
 				// set the requestedDeviceName
@@ -112,10 +112,10 @@ int runAudioSwitch(int argc, const char * argv[]) {
 					typeRequested = kAudioTypeInput;
 				} else if (strcmp(optarg, "output") == 0) {
 					typeRequested = kAudioTypeOutput;
-                } else if (strcmp(optarg, "system") == 0) {
-                    typeRequested = kAudioTypeSystemOutput;
-                } else if (strcmp(optarg, "all") == 0) {
-                    typeRequested = kAudioTypeAll;
+				} else if (strcmp(optarg, "system") == 0) {
+					typeRequested = kAudioTypeSystemOutput;
+				} else if (strcmp(optarg, "all") == 0) {
+					typeRequested = kAudioTypeAll;
 				} else {
 					printf("Invalid device type \"%s\" specified.\n",optarg);
 					showUsage(argv[0]);
