@@ -15,7 +15,7 @@ This is a command-line utility only and has no graphical user interface.  Tested
 Installing from homebrew
 ------------------------
 ```
-$ brew install switchaudio-osx
+brew install switchaudio-osx
 ```
 
 Usage
