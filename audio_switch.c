@@ -435,6 +435,12 @@ AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRe
 				break;
             default: break;
 		}
+        
+        char nextDeviceName[256];
+        getDeviceName(dev_array[i], nextDeviceName);
+        if (strstr(nextDeviceName, "Microsoft Teams")) {
+            continue;
+        }
 
 		if (first_dev == kAudioDeviceUnknown) {
 			first_dev = dev_array[i];
