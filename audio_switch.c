@@ -220,12 +220,35 @@ int runAudioSwitch(int argc, const char * argv[]) {
     }
 
 	if (function == kFunctionMute) {
+	    OSStatus status;
+	    bool anyStatusError = false;
 		if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeInput;
 		
-		OSStatus status = setMute(typeRequested, muteRequested);
-		if(status != noErr) {
-			printf("Failed setting mute state. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
-			return 1;
+		switch(typeRequested) {
+			case kAudioTypeInput: 
+            case kAudioTypeOutput:
+			case kAudioTypeSystemOutput:
+				status = setMute(typeRequested, muteRequested);
+				if(status != noErr) {
+					printf("Failed setting mute state. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
+					return 1;
+				}
+				break;
+			case kAudioTypeAll:
+				status = setMute(kAudioTypeInput, muteRequested);
+				if(status != noErr) {
+					printf("Failed setting mute state for input. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
+					anyStatusError = true;
+				}
+				status = setMute(kAudioTypeOutput, muteRequested);
+				if(status != noErr) {
+					printf("Failed setting mute state for output. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
+					anyStatusError = true;
+				}
+				if (anyStatusError) {
+					return 1;
+				}
+				break;
 		}
 		return 0;
     }
