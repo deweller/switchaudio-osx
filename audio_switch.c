@@ -341,6 +341,7 @@ char *deviceTypeName(ASDeviceType device_type) {
 		case kAudioTypeInput: return "input";
 		case kAudioTypeOutput: return "output";
 		case kAudioTypeSystemOutput: return "system";
+		case kAudioTypeAll: return "all";
         default: return "unknown";
 	}
 	
