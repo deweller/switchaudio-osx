@@ -41,6 +41,7 @@ typedef enum {
 	kAudioTypeInput   = 1,
 	kAudioTypeOutput  = 2,
 	kAudioTypeSystemOutput = 3,
+	kAudioTypeAll = 4
 } ASDeviceType;
 
 typedef enum {

@@ -35,7 +35,7 @@ void showUsage(const char * appName) {
            "  -a             : shows all devices\n"
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
-           "  -t type        : device type (input/output/system).  Defaults to output.\n"
+           "  -t type        : device type (input/output/system/all).  Defaults to output.\n"
            "  -m mute        : sets the mute status (mute/unmute/toggle).\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
@@ -45,9 +45,9 @@ void showUsage(const char * appName) {
 
 int runAudioSwitch(int argc, const char * argv[]) {
 	char requestedDeviceName[256];
-    char printableDeviceName[256];
-    int requestedDeviceID;
-    char requestedDeviceUID[256];
+	char printableDeviceName[256];
+	int requestedDeviceID;
+	char requestedDeviceUID[256];
 	AudioDeviceID chosenDeviceID = kAudioDeviceUnknown;
 	ASDeviceType typeRequested = kAudioTypeUnknown;
 	ASOutputType outputRequested = kFormatHuman;
@@ -110,20 +110,20 @@ int runAudioSwitch(int argc, const char * argv[]) {
 			case 'i':
 				// set the requestedDeviceID
 				function = kFunctionSetDeviceByID;
-                requestedDeviceID = atoi(optarg);
+				requestedDeviceID = atoi(optarg);
 				break;
 
-            case 'u':
-                // set the requestedDeviceUID
-                function = kFunctionSetDeviceByUID;
-                strcpy(requestedDeviceUID, optarg);
-                break;
+			case 'u':
+				// set the requestedDeviceUID
+				function = kFunctionSetDeviceByUID;
+				strcpy(requestedDeviceUID, optarg);
+				break;
 
-            case 's':
-                // set the requestedDeviceName
-                function = kFunctionSetDeviceByName;
-                strcpy(requestedDeviceName, optarg);
-                break;
+			case 's':
+				// set the requestedDeviceName
+				function = kFunctionSetDeviceByName;
+				strcpy(requestedDeviceName, optarg);
+				break;
 
 			case 't':
 				// set the requestedDeviceName
@@ -133,6 +133,8 @@ int runAudioSwitch(int argc, const char * argv[]) {
 					typeRequested = kAudioTypeOutput;
 				} else if (strcmp(optarg, "system") == 0) {
 					typeRequested = kAudioTypeSystemOutput;
+				} else if (strcmp(optarg, "all") == 0) {
+					typeRequested = kAudioTypeAll;
 				} else {
 					printf("Invalid device type \"%s\" specified.\n",optarg);
 					showUsage(argv[0]);
@@ -369,6 +371,7 @@ char *deviceTypeName(ASDeviceType device_type) {
 		case kAudioTypeInput: return "input";
 		case kAudioTypeOutput: return "output";
 		case kAudioTypeSystemOutput: return "system";
+		case kAudioTypeAll: return "all";
         default: return "unknown";
 	}
 	
@@ -484,13 +487,18 @@ void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
 	UInt32 propertySize = sizeof(UInt32);
 
 	switch(typeRequested) {
-		case kAudioTypeInput: 
+		case kAudioTypeInput:
 			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
 			break;
 		case kAudioTypeOutput:
 			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultOutputDevice, propertySize, &newDeviceID);
 			break;
 		case kAudioTypeSystemOutput:
+			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
+			break;
+		case kAudioTypeAll:
+			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
+			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultOutputDevice, propertySize, &newDeviceID);
 			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
 			break;
 		default: break;
