@@ -35,7 +35,8 @@ void showUsage(const char * appName) {
            "  -a             : shows all devices\n"
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
-           "  -t type        : device type (input/output/system).  Defaults to output.\n"
+           "  -t type        : device type (input/output/system/all).  Defaults to output.\n"
+           "  -m mute        : sets the mute status (mute/unmute/toggle).  For input/output only.\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
            "  -u device_uid  : sets the audio device to the given device by uid or a substring of the uid\n"
@@ -44,16 +45,17 @@ void showUsage(const char * appName) {
 
 int runAudioSwitch(int argc, const char * argv[]) {
 	char requestedDeviceName[256];
-    char printableDeviceName[256];
-    int requestedDeviceID;
-    char requestedDeviceUID[256];
+	char printableDeviceName[256];
+	int requestedDeviceID;
+	char requestedDeviceUID[256];
 	AudioDeviceID chosenDeviceID = kAudioDeviceUnknown;
 	ASDeviceType typeRequested = kAudioTypeUnknown;
 	ASOutputType outputRequested = kFormatHuman;
+	ASMuteType muteRequested = kToggleMute;
 	int function = 0;
 
 	int c;
-	while ((c = getopt(argc, (char **)argv, "hacnt:f:i:u:s:")) != -1) {
+	while ((c = getopt(argc, (char **)argv, "hacm:nt:f:i:u:s:")) != -1) {
 		switch (c) {
 			case 'f':
 				// format
@@ -83,6 +85,23 @@ int runAudioSwitch(int argc, const char * argv[]) {
 				function = kFunctionShowHelp;
 				break;
 				
+			case 'm':
+				// control the mute status of the interface selected with -t
+				function = kFunctionMute;
+				// set the mute mode
+				if (strcmp(optarg, "mute") == 0) {
+					muteRequested = kMute;
+				} else if (strcmp(optarg, "unmute") == 0) {
+					muteRequested = kUnmute;
+				} else if (strcmp(optarg, "toggle") == 0) {
+					muteRequested = kToggleMute;
+				} else {
+					printf("Invalid mute operation type \"%s\" specified.\n", optarg);
+					showUsage(argv[0]);
+					return 1;
+				}
+				break;
+				
 			case 'n':
 				// cycle to the next audio device
 				function = kFunctionCycleNext;
@@ -91,20 +110,20 @@ int runAudioSwitch(int argc, const char * argv[]) {
 			case 'i':
 				// set the requestedDeviceID
 				function = kFunctionSetDeviceByID;
-                requestedDeviceID = atoi(optarg);
+				requestedDeviceID = atoi(optarg);
 				break;
 
-            case 'u':
-                // set the requestedDeviceUID
-                function = kFunctionSetDeviceByUID;
-                strcpy(requestedDeviceUID, optarg);
-                break;
+			case 'u':
+				// set the requestedDeviceUID
+				function = kFunctionSetDeviceByUID;
+				strcpy(requestedDeviceUID, optarg);
+				break;
 
-            case 's':
-                // set the requestedDeviceName
-                function = kFunctionSetDeviceByName;
-                strcpy(requestedDeviceName, optarg);
-                break;
+			case 's':
+				// set the requestedDeviceName
+				function = kFunctionSetDeviceByName;
+				strcpy(requestedDeviceName, optarg);
+				break;
 
 			case 't':
 				// set the requestedDeviceName
@@ -114,6 +133,8 @@ int runAudioSwitch(int argc, const char * argv[]) {
 					typeRequested = kAudioTypeOutput;
 				} else if (strcmp(optarg, "system") == 0) {
 					typeRequested = kAudioTypeSystemOutput;
+				} else if (strcmp(optarg, "all") == 0) {
+					typeRequested = kAudioTypeAll;
 				} else {
 					printf("Invalid device type \"%s\" specified.\n",optarg);
 					showUsage(argv[0]);
@@ -196,6 +217,43 @@ int runAudioSwitch(int argc, const char * argv[]) {
             return 1;
         }
         sprintf(printableDeviceName, "Device with UID: %s", getDeviceUID(chosenDeviceID));
+    }
+
+	if (function == kFunctionMute) {
+	    OSStatus status;
+	    bool anyStatusError = false;
+		if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeInput;
+		
+		switch(typeRequested) {
+			case kAudioTypeInput: 
+            case kAudioTypeOutput:
+				status = setMute(typeRequested, muteRequested);
+				if(status != noErr) {
+					printf("Failed setting mute state. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
+					return 1;
+				}
+				break;
+			case kAudioTypeAll:
+				status = setMute(kAudioTypeInput, muteRequested);
+				if(status != noErr) {
+					printf("Failed setting mute state for input. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
+					anyStatusError = true;
+				}
+				status = setMute(kAudioTypeOutput, muteRequested);
+				if(status != noErr) {
+					printf("Failed setting mute state for output. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
+					anyStatusError = true;
+				}
+				if (anyStatusError) {
+					return 1;
+				}
+				break;
+			case kAudioTypeSystemOutput:
+				printf("audio device \"%s\" may not be muted\n", deviceTypeName(typeRequested));
+				return 1;
+				break;
+		}
+		return 0;
     }
 
     if (!chosenDeviceID) {
@@ -362,6 +420,7 @@ char *deviceTypeName(ASDeviceType device_type) {
 		case kAudioTypeInput: return "input";
 		case kAudioTypeOutput: return "output";
 		case kAudioTypeSystemOutput: return "system";
+		case kAudioTypeAll: return "all";
         default: return "unknown";
 	}
 	
@@ -496,6 +555,7 @@ void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
     AudioObjectPropertyAddress addr;
     UInt32 propertySize = sizeof(UInt32);
     addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+
     switch(typeRequested) {
         case kAudioTypeInput:
             addr.mSelector = kAudioHardwarePropertyDefaultInputDevice;
@@ -506,12 +566,68 @@ void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
         case kAudioTypeSystemOutput:
             addr.mSelector = kAudioHardwarePropertyDefaultSystemOutputDevice;
             break;
-        default: 
+        case kAudioTypeAll:
+            // fix this...
+            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
+            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultOutputDevice, propertySize, &newDeviceID);
+            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
+            break;
+        default:
             break;
     }
+
     addr.mScope = kAudioObjectPropertyScopeGlobal;
     addr.mElement = kAudioObjectPropertyElementMaster;
     AudioObjectSetPropertyData(kAudioObjectSystemObject, &addr, 0, NULL, propertySize, &newDeviceID);
+}
+
+OSStatus setMute(ASDeviceType typeRequested, ASMuteType muteRequested) {
+	AudioDeviceID currentDeviceID = kAudioDeviceUnknown;
+	char currentDeviceName[256];
+	
+	currentDeviceID = getCurrentlySelectedDeviceID(typeRequested);
+	getDeviceName(currentDeviceID, currentDeviceName);
+	
+	UInt32 scope = kAudioObjectPropertyScopeInput;
+	
+	switch(typeRequested) {
+		case kAudioTypeInput:
+			scope = kAudioObjectPropertyScopeInput;
+			break;
+		case kAudioTypeOutput:
+			scope = kAudioObjectPropertyScopeOutput;
+			break;
+		case kAudioTypeSystemOutput:
+			scope = kAudioObjectPropertyScopeGlobal;
+			break;
+	}
+
+	AudioObjectPropertyAddress propertyAddress = {
+		.mSelector  = kAudioDevicePropertyMute,
+		.mScope     = scope,
+		.mElement   = kAudioObjectPropertyElementMain,
+    };
+
+	UInt32 muted = (UInt32)muteRequested;
+	UInt32 propertySize = sizeof(muted);
+
+    OSStatus status;
+	if (muteRequested == kToggleMute) {
+		UInt32 dataSize;
+		status = AudioObjectGetPropertyDataSize(currentDeviceID, &propertyAddress, 0, NULL, &dataSize);
+		if (status != noErr) {
+			return status;
+		}
+		status = AudioObjectGetPropertyData(currentDeviceID, &propertyAddress, 0, NULL, &propertySize, &muted);
+		if (status != noErr) {
+			return status;
+		}
+		muted = !muted;
+	}
+
+	printf("Setting device %s to %s\n", currentDeviceName, muted ? "muted": "unmuted");
+
+	return AudioObjectSetPropertyData(currentDeviceID, &propertyAddress, 0, NULL, propertySize, &muted);
 }
 
 void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {

@@ -27,11 +27,25 @@ SwitchAudioSource [-a] [-c] [-f format] [-t type] [-n] -s device\_name | -i devi
  - **-c**               : shows current device
  - **-f** _format_      : output format (cli/human/json). Defaults to human.
  - **-t** _type_        : device type (input/output/system).  Defaults to output.
+ - **-m** _mute_mode_   : sets the mute status (mute/unmute/toggle).
  - **-n**               : cycles the audio device to the next one
  - **-i** _device_id_   : sets the audio device to the given device by id
  - **-u** _device_uid_  : sets the audio device to the given device by uid or a substring of the uid
  - **-s** _device_name_ : sets the audio device to the given device by name
 
+### Muting
+
+The `-m` flag can be used to mute input or output devices.
+
+Define the device via `-t`.
+
+Example for toggling the mute state for the currently selected input, e.g. microphone:
+
+```shell
+SwitchAudioSource -m toggle -t input
+```
+
+This is useful on a hotkey, e.g. to mute your Teams or Zoom input.
 
 Thanks
 -------
