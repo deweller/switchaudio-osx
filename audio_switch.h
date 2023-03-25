@@ -32,6 +32,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <unistd.h>
 #include <CoreServices/CoreServices.h>
 #include <CoreAudio/CoreAudio.h>
+#include <CoreAudio/AudioHardware.h>
+#include <CoreAudio/AudioHardwareBase.h>
 
 
 typedef enum {
@@ -48,6 +50,12 @@ typedef enum {
 	kFormatJSON = 2,
 } ASOutputType;
 
+typedef enum {
+	kUnmute = 0,
+	kMute = 1,
+	kToggleMute = 2,
+} ASMuteType;
+
 enum {
 	kFunctionSetDeviceByName = 1,
 	kFunctionShowHelp        = 2,
@@ -55,7 +63,8 @@ enum {
 	kFunctionShowCurrent     = 4,
 	kFunctionCycleNext       = 5,
     kFunctionSetDeviceByID   = 6,
-    kFunctionSetDeviceByUID  = 7
+    kFunctionSetDeviceByUID  = 7,
+	kFunctionMute            = 8,
 };
 
 
@@ -74,4 +83,5 @@ void showCurrentlySelectedDeviceID(ASDeviceType typeRequested, ASOutputType outp
 AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType typeRequested);
 AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested);
 void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
+OSStatus setMute(ASDeviceType typeRequested, ASMuteType mute);
 void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested);
