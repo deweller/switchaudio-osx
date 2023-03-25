@@ -53,6 +53,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	ASOutputType outputRequested = kFormatHuman;
 	ASMuteType muteRequested = kToggleMute;
 	int function = 0;
+	int result = 0;
 
 	int c;
 	while ((c = getopt(argc, (char **)argv, "hacm:nt:f:i:u:s:")) != -1) {
@@ -172,26 +173,8 @@ int runAudioSwitch(int argc, const char * argv[]) {
 	if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeOutput;
 
 	if (function == kFunctionCycleNext) {
-		// get current device of requested type
-		chosenDeviceID = getCurrentlySelectedDeviceID(typeRequested);
-		if (chosenDeviceID == kAudioDeviceUnknown) {
-			printf("Could not find current audio device of type %s.  Nothing was changed.\n", deviceTypeName(typeRequested));
-			return 1;
-		}
-
-		// find next device to current device
-		chosenDeviceID = getNextDeviceID(chosenDeviceID, typeRequested);
-		if (chosenDeviceID == kAudioDeviceUnknown) {
-			printf("Could not find next audio device of type %s.  Nothing was changed.\n", deviceTypeName(typeRequested));
-			return 1;
-		}
-		
-		// choose the requested audio device
-		setDevice(chosenDeviceID, typeRequested);
-		getDeviceName(chosenDeviceID, requestedDeviceName);
-		printf("%s audio device set to \"%s\"\n", deviceTypeName(typeRequested), requestedDeviceName);
-		
-		return 0;
+		result = cycleNext(typeRequested);
+		return result;
 	}
 
     if (function == kFunctionSetDeviceByID) {
@@ -199,7 +182,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
         sprintf(printableDeviceName, "Device with ID: %d", chosenDeviceID);
     }
 
-    if (function == kFunctionSetDeviceByName) {
+    if (function == kFunctionSetDeviceByName && typeRequested != kAudioTypeAll) {
         // find the id of the requested device
         chosenDeviceID = getRequestedDeviceID(requestedDeviceName, typeRequested);
         if (chosenDeviceID == kAudioDeviceUnknown) {
@@ -256,17 +239,25 @@ int runAudioSwitch(int argc, const char * argv[]) {
 		return 0;
     }
 
-    if (!chosenDeviceID) {
-        printf("Please specify audio device.\n");
-        showUsage(argv[0]);
-        return 1;
-    }
 	
-	// choose the requested audio device
-	setDevice(chosenDeviceID, typeRequested);
-	printf("%s audio device set to \"%s\"\n", deviceTypeName(typeRequested), printableDeviceName);
+	if (typeRequested == kAudioTypeAll && function == kFunctionSetDeviceByName) {
+		// special case for all - process each one separately
+		result = setAllDevicesByName(requestedDeviceName);
+	} else {
+		// require a chose
+		if (!chosenDeviceID) {
+		    printf("Please specify audio device.\n");
+		    showUsage(argv[0]);
+		    return 1;
+		}
 
-    return 0;
+		// choose the requested audio device
+		result = setDevice(chosenDeviceID, typeRequested);
+		printf("%s audio device set to \"%s\"\n", deviceTypeName(typeRequested), printableDeviceName);
+	}
+
+
+    return result;
 }
 
 const char * getDeviceUID(AudioDeviceID deviceID) {
@@ -551,10 +542,17 @@ AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRe
     return first_dev;
 }
 
-void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
+int setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
+	return setOneDevice(newDeviceID, typeRequested);
+}
+
+int setOneDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
     AudioObjectPropertyAddress addr;
     UInt32 propertySize = sizeof(UInt32);
-    addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+    OSStatus status;
+
+    addr.mScope = kAudioObjectPropertyScopeGlobal;
+    addr.mElement = kAudioObjectPropertyElementMaster;
 
     switch(typeRequested) {
         case kAudioTypeInput:
@@ -566,20 +564,117 @@ void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
         case kAudioTypeSystemOutput:
             addr.mSelector = kAudioHardwarePropertyDefaultSystemOutputDevice;
             break;
-        case kAudioTypeAll:
-            // fix this...
-            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
-            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultOutputDevice, propertySize, &newDeviceID);
-            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
-            break;
         default:
+            addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
             break;
     }
+    status = AudioObjectSetPropertyData(kAudioObjectSystemObject, &addr, 0, NULL, propertySize, &newDeviceID);
+    if(status != noErr) {
+    	printf("Failed to set %s", deviceTypeName(typeRequested));
+    }
 
-    addr.mScope = kAudioObjectPropertyScopeGlobal;
-    addr.mElement = kAudioObjectPropertyElementMaster;
-    AudioObjectSetPropertyData(kAudioObjectSystemObject, &addr, 0, NULL, propertySize, &newDeviceID);
+    return 0;
 }
+
+int setAllDevicesByName(char * requestedDeviceName) {
+	int result;
+	bool anyStatusError = false;
+	AudioDeviceID newDeviceID;
+	
+	// input
+	newDeviceID = getRequestedDeviceID(requestedDeviceName, kAudioTypeInput);
+	if (newDeviceID != nil) {
+		result = setOneDevice(newDeviceID, kAudioTypeInput);
+		if (result != 0) {
+			anyStatusError = true;
+		} else {
+			printf("%s audio device set to \"%s\"\n", deviceTypeName(kAudioTypeInput), requestedDeviceName);
+		}
+	}
+
+	// output
+	newDeviceID = getRequestedDeviceID(requestedDeviceName, kAudioTypeOutput);
+	if (newDeviceID != nil) {
+		result = setOneDevice(newDeviceID, kAudioTypeOutput);
+		if (result != 0) {
+			anyStatusError = true;
+		} else {
+			printf("%s audio device set to \"%s\"\n", deviceTypeName(kAudioTypeOutput), requestedDeviceName);
+		}
+	}
+
+	// system
+	newDeviceID = getRequestedDeviceID(requestedDeviceName, kAudioTypeSystemOutput);
+	if (newDeviceID != nil) {
+		result = setOneDevice(newDeviceID, kAudioTypeSystemOutput);
+		if (result != 0) {
+			anyStatusError = true;
+		} else {
+			printf("%s audio device set to \"%s\"\n", deviceTypeName(kAudioTypeSystemOutput), requestedDeviceName);
+		}
+	}
+
+    if (anyStatusError) {
+    	return 1;
+    }
+
+    return 0;
+}
+
+int cycleNext(ASDeviceType typeRequested) {
+	int result;
+	bool anyStatusError = false;
+	if (typeRequested == kAudioTypeAll) {
+		result = cycleNextForOneDevice(kAudioTypeInput);
+		if (result != 0) {
+			anyStatusError = true;
+		}
+		result = cycleNextForOneDevice(kAudioTypeOutput);
+		if (result != 0) {
+			anyStatusError = true;
+		}
+		result = cycleNextForOneDevice(kAudioTypeSystemOutput);
+		if (result != 0) {
+			anyStatusError = true;
+		}
+
+		if (anyStatusError) {
+			return 1;
+		}
+		return 0;
+
+	} else {
+		return cycleNextForOneDevice(typeRequested);
+	}
+}
+
+int cycleNextForOneDevice(ASDeviceType typeRequested) {
+	char requestedDeviceName[256];
+
+	// get current device of requested type
+	AudioDeviceID chosenDeviceID = getCurrentlySelectedDeviceID(typeRequested);
+	if (chosenDeviceID == kAudioDeviceUnknown) {
+		printf("Could not find current audio device of type %s.  Nothing was changed.\n", deviceTypeName(typeRequested));
+		return 1;
+	}
+
+	// find next device to current device
+	chosenDeviceID = getNextDeviceID(chosenDeviceID, typeRequested);
+	if (chosenDeviceID == kAudioDeviceUnknown) {
+		printf("Could not find next audio device of type %s.  Nothing was changed.\n", deviceTypeName(typeRequested));
+		return 1;
+	}
+	
+	// choose the requested audio device
+	int result = setDevice(chosenDeviceID, typeRequested);
+	if (result == 0) {
+		getDeviceName(chosenDeviceID, requestedDeviceName);
+		printf("%s audio device set to \"%s\"\n", deviceTypeName(typeRequested), requestedDeviceName);
+	}
+	return result;
+
+}
+
 
 OSStatus setMute(ASDeviceType typeRequested, ASMuteType muteRequested) {
 	AudioDeviceID currentDeviceID = kAudioDeviceUnknown;
