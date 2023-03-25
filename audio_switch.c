@@ -289,18 +289,15 @@ const char * getDeviceUID(AudioDeviceID deviceID) {
     return deviceUID_string;
 }
 
-
 AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, ASDeviceType typeRequested) {
+    AudioObjectPropertyAddress propertyAddress = {kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMaster};
     UInt32 propertySize;
     AudioDeviceID dev_array[64];
     int numberOfDevices = 0;
 
-    AudioHardwareGetPropertyInfo(kAudioHardwarePropertyDevices, &propertySize, NULL);
-    // printf("propertySize=%d\n",propertySize);
-
-    AudioHardwareGetProperty(kAudioHardwarePropertyDevices, &propertySize, dev_array);
+    AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize);
+    AudioObjectGetPropertyData(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize, dev_array);
     numberOfDevices = (propertySize / sizeof(AudioDeviceID));
-    // printf("numberOfDevices=%d\n",numberOfDevices);
 
     for(int i = 0; i < numberOfDevices; ++i) {
         switch(typeRequested) {
@@ -318,8 +315,13 @@ AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, AS
             default: break;
         }
 
-        const char * deviceUID = getDeviceUID(dev_array[i]);
-        
+        char deviceUID[256];
+        propertyAddress.mSelector = kAudioDevicePropertyDeviceUID;
+        propertyAddress.mScope = kAudioObjectPropertyScopeGlobal;
+        propertyAddress.mElement = dev_array[i];
+        propertySize = sizeof(deviceUID);
+        AudioObjectGetPropertyData(dev_array[i], &propertyAddress, 0, NULL, &propertySize, &deviceUID);
+
         if (strstr(deviceUID, requestedDeviceUID) != NULL) {
             return dev_array[i];
         }
@@ -329,68 +331,89 @@ AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, AS
 }
 
 AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested) {
-	UInt32 propertySize;
-	AudioDeviceID deviceID = kAudioDeviceUnknown;
-	
-	// get the default output device
-	propertySize = sizeof(deviceID);
-	switch(typeRequested) {
-		case kAudioTypeInput: 
-			AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice, &propertySize, &deviceID);
-			break;
-		case kAudioTypeOutput:
-			AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice, &propertySize, &deviceID);
-			break;
-		case kAudioTypeSystemOutput:
-			AudioHardwareGetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, &propertySize, &deviceID);
-			break;
-        default: break;
-			
-	}
-	
-	return deviceID;
+    AudioObjectPropertyAddress address;
+    address.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+    address.mScope = kAudioObjectPropertyScopeGlobal;
+    address.mElement = kAudioObjectPropertyElementMaster;
+
+    switch (typeRequested) {
+        case kAudioTypeInput:
+            address.mSelector = kAudioHardwarePropertyDefaultInputDevice;
+            break;
+        case kAudioTypeOutput:
+            address.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+            break;
+        case kAudioTypeSystemOutput:
+            address.mSelector = kAudioHardwarePropertyDefaultSystemOutputDevice;
+            break;
+        default:
+            break;
+    }
+
+    AudioDeviceID deviceID = kAudioDeviceUnknown;
+    UInt32 dataSize = sizeof(AudioDeviceID);
+    OSStatus status = AudioObjectGetPropertyData(kAudioObjectSystemObject, &address, 0, NULL, &dataSize, &deviceID);
+    if (status != noErr) {
+        // handle error
+    }
+
+    return deviceID;
 }
 
-void getDeviceName(AudioDeviceID deviceID, char * deviceName) {
-	UInt32 propertySize = 256;
-	AudioDeviceGetProperty(deviceID, 0, false, kAudioDevicePropertyDeviceName, &propertySize, deviceName);  
+void getDeviceName(AudioDeviceID deviceID, char* deviceName) {
+    AudioObjectPropertyAddress address = {
+        kAudioDevicePropertyDeviceNameCFString,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    };
+    CFStringRef cfDeviceName = NULL;
+    UInt32 dataSize = sizeof(CFStringRef);
+    OSStatus result = AudioObjectGetPropertyData(deviceID, &address, 0, NULL, &dataSize, &cfDeviceName);
+    if (result == noErr && cfDeviceName != NULL) {
+        CFStringGetCString(cfDeviceName, deviceName, 256, kCFStringEncodingUTF8);
+        CFRelease(cfDeviceName);
+    }
 }
 
 // returns kAudioTypeInput or kAudioTypeOutput
 ASDeviceType getDeviceType(AudioDeviceID deviceID) {
-	UInt32 propertySize = 256;
-	
-	// if there are any output streams, then it is an output
-	AudioDeviceGetPropertyInfo(deviceID, 0, false, kAudioDevicePropertyStreams, &propertySize, NULL);
-	if (propertySize > 0) return kAudioTypeOutput;
-	
-	// if there are any input streams, then it is an input
-	AudioDeviceGetPropertyInfo(deviceID, 0, true, kAudioDevicePropertyStreams, &propertySize, NULL);
-	if (propertySize > 0) return kAudioTypeInput;
-	
-	return kAudioTypeUnknown;
+    AudioObjectPropertyAddress address = {
+        kAudioDevicePropertyStreams,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    };
+    UInt32 dataSize = 0;
+    OSStatus result = AudioObjectGetPropertyDataSize(deviceID, &address, 0, NULL, &dataSize);
+    if (result == noErr && dataSize > 0) {
+        return kAudioTypeOutput;
+    }
+    address.mElement = kAudioObjectPropertyElementMaster + 1;
+    result = AudioObjectGetPropertyDataSize(deviceID, &address, 0, NULL, &dataSize);
+    if (result == noErr && dataSize > 0) {
+        return kAudioTypeInput;
+    }
+    return kAudioTypeUnknown;
 }
 
 bool isAnOutputDevice(AudioDeviceID deviceID) {
-	UInt32 propertySize = 256;
-	
-	// if there are any output streams, then it is an output
-	AudioDeviceGetPropertyInfo(deviceID, 0, false, kAudioDevicePropertyStreams, &propertySize, NULL);
-	if (propertySize > 0) return true;
-    
+    AudioObjectPropertyAddress propertyAddress = {kAudioDevicePropertyStreams, kAudioDevicePropertyScopeOutput, kAudioObjectPropertyElementMaster};
+    UInt32 dataSize = 0;
+    OSStatus result = AudioObjectGetPropertyDataSize(deviceID, &propertyAddress, 0, NULL, &dataSize);
+    if (result == noErr && dataSize > 0) {
+        return true;
+    }
     return false;
 }
 
 bool isAnInputDevice(AudioDeviceID deviceID) {
-	UInt32 propertySize = 256;
-	
-	// if there are any input streams, then it is an input
-	AudioDeviceGetPropertyInfo(deviceID, 0, true, kAudioDevicePropertyStreams, &propertySize, NULL);
-	if (propertySize > 0) return kAudioTypeInput;
-    
+    AudioObjectPropertyAddress propertyAddress = {kAudioDevicePropertyStreams, kAudioDevicePropertyScopeInput, kAudioObjectPropertyElementMaster};
+    UInt32 dataSize = 0;
+    OSStatus result = AudioObjectGetPropertyDataSize(deviceID, &propertyAddress, sizeof(AudioClassDescription), kAudioDevicePropertyScopeInput, &dataSize);
+    if (result == noErr && dataSize > 0) {
+        return kAudioTypeInput;
+    }
     return false;
 }
-
 
 char *deviceTypeName(ASDeviceType device_type) {
 	switch(device_type) {
@@ -425,110 +448,137 @@ void showCurrentlySelectedDeviceID(ASDeviceType typeRequested, ASOutputType outp
 	}
 }
 
-
 AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType typeRequested) {
-	UInt32 propertySize;
-	AudioDeviceID dev_array[64];
-	int numberOfDevices = 0;
-	char deviceName[256];
-	
-	AudioHardwareGetPropertyInfo(kAudioHardwarePropertyDevices, &propertySize, NULL);
-	// printf("propertySize=%d\n",propertySize);
-	
-	AudioHardwareGetProperty(kAudioHardwarePropertyDevices, &propertySize, dev_array);
-	numberOfDevices = (propertySize / sizeof(AudioDeviceID));
-	// printf("numberOfDevices=%d\n",numberOfDevices);
-	
-	for(int i = 0; i < numberOfDevices; ++i) {
-		switch(typeRequested) {
-			case kAudioTypeInput:
-				if (!isAnInputDevice(dev_array[i])) continue;
-				break;
+    AudioObjectPropertyAddress propertyAddress;
+    propertyAddress.mSelector = kAudioHardwarePropertyDevices;
+    propertyAddress.mScope = kAudioObjectPropertyScopeGlobal;
+    propertyAddress.mElement = kAudioObjectPropertyElementMaster;
+    
+    UInt32 propertySize;
+    AudioDeviceID dev_array[64];
+    int numberOfDevices = 0;
+    char deviceName[256];
+    
+    OSStatus status = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize);
+    if (status != noErr) {
+        printf("Error getting size of property data: %d\n", status);
+        return kAudioDeviceUnknown;
+    }
+    
+    status = AudioObjectGetPropertyData(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize, dev_array);
+    if (status != noErr) {
+        printf("Error getting property data: %d\n", status);
+        return kAudioDeviceUnknown;
+    }
+    
+    numberOfDevices = (propertySize / sizeof(AudioDeviceID));
+    for(int i = 0; i < numberOfDevices; ++i) {
+        switch(typeRequested) {
+            case kAudioTypeInput:
+                if (!isAnInputDevice(dev_array[i])) continue;
+                break;
 
-			case kAudioTypeOutput:
-				if (!isAnOutputDevice(dev_array[i])) continue;
-				break;
+            case kAudioTypeOutput:
+                if (!isAnOutputDevice(dev_array[i])) continue;
+                break;
 
-			case kAudioTypeSystemOutput:
-				if (getDeviceType(dev_array[i]) != kAudioTypeOutput) continue;
-				break;
+            case kAudioTypeSystemOutput:
+                if (getDeviceType(dev_array[i]) != kAudioTypeOutput) continue;
+                break;
             default: break;
-		}
-		
+        }
+        
 		getDeviceName(dev_array[i], deviceName);
-		// printf("For device %d, id = %d and name is %s\n",i,dev_array[i],deviceName);
-		if (strcmp(requestedDeviceName, deviceName) == 0) {
-			return dev_array[i];
-		}
-	}
-	
-	return kAudioDeviceUnknown;
+        if (strcmp(requestedDeviceName, deviceName) == 0) {
+            return dev_array[i];
+        }
+    }
+    
+    return kAudioDeviceUnknown;
 }
 
 AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested) {
-	UInt32 propertySize;
-	AudioDeviceID dev_array[64];
-	int numberOfDevices = 0;
-	AudioDeviceID first_dev = kAudioDeviceUnknown;
-	int found = -1;
-	
-	AudioHardwareGetPropertyInfo(kAudioHardwarePropertyDevices, &propertySize, NULL);
-	// printf("propertySize=%d\n",propertySize);
-	
-	AudioHardwareGetProperty(kAudioHardwarePropertyDevices, &propertySize, dev_array);
-	numberOfDevices = (propertySize / sizeof(AudioDeviceID));
-	// printf("numberOfDevices=%d\n",numberOfDevices);
-	
-	for(int i = 0; i < numberOfDevices; ++i) {
-		switch(typeRequested) {
-			case kAudioTypeInput:
+    AudioObjectPropertyAddress addr;
+    AudioDeviceID dev_array[64];
+    int numberOfDevices = 0;
+    AudioDeviceID first_dev = kAudioDeviceUnknown;
+    int found = -1;
+
+    addr.mSelector = kAudioHardwarePropertyDevices;
+    addr.mScope = kAudioObjectPropertyScopeGlobal;
+    addr.mElement = kAudioObjectPropertyElementMaster;
+    UInt32 propertySize = 0;
+    OSStatus err = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &addr, 0, NULL, &propertySize);
+    if (err != noErr) {
+        return kAudioDeviceUnknown;
+    }
+
+    err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &addr, 0, NULL, &propertySize, dev_array);
+    if (err != noErr) {
+        return kAudioDeviceUnknown;
+    }
+    numberOfDevices = (propertySize / sizeof(AudioDeviceID));
+
+    for(int i = 0; i < numberOfDevices; ++i) {
+        switch(typeRequested) {
+            case kAudioTypeInput:
                 if (!isAnInputDevice(dev_array[i])) continue;
                 break;
-                
-			case kAudioTypeOutput:
+
+            case kAudioTypeOutput:
                 if (!isAnOutputDevice(dev_array[i])) continue;
-				break;
+                break;
 
-			case kAudioTypeSystemOutput:
-				if (getDeviceType(dev_array[i]) != kAudioTypeOutput) continue;
-				break;
-            default: break;
-		}
+            case kAudioTypeSystemOutput:
+                if (getDeviceType(dev_array[i]) != kAudioTypeOutput) continue;
+                break;
 
-		if (first_dev == kAudioDeviceUnknown) {
-			first_dev = dev_array[i];
-		}
-		if (found >= 0) {
-			return dev_array[i];
-		}
-		if (dev_array[i] == currentDeviceID) {
-			found = i;
-		}
-	}
-	
-	return first_dev;
+            default: 
+                break;
+        }
+
+        if (first_dev == kAudioDeviceUnknown) {
+            first_dev = dev_array[i];
+        }
+        if (found >= 0) {
+            return dev_array[i];
+        }
+        if (dev_array[i] == currentDeviceID) {
+            found = i;
+        }
+    }
+
+    return first_dev;
 }
 
 void setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
-	UInt32 propertySize = sizeof(UInt32);
+    AudioObjectPropertyAddress addr;
+    UInt32 propertySize = sizeof(UInt32);
+    addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
 
-	switch(typeRequested) {
-		case kAudioTypeInput:
-			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
-			break;
-		case kAudioTypeOutput:
-			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultOutputDevice, propertySize, &newDeviceID);
-			break;
-		case kAudioTypeSystemOutput:
-			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
-			break;
-		case kAudioTypeAll:
-			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
-			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultOutputDevice, propertySize, &newDeviceID);
-			AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
-			break;
-		default: break;
-	}
+    switch(typeRequested) {
+        case kAudioTypeInput:
+            addr.mSelector = kAudioHardwarePropertyDefaultInputDevice;
+            break;
+        case kAudioTypeOutput:
+            addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+            break;
+        case kAudioTypeSystemOutput:
+            addr.mSelector = kAudioHardwarePropertyDefaultSystemOutputDevice;
+            break;
+        case kAudioTypeAll:
+            // fix this...
+            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultInputDevice, propertySize, &newDeviceID);
+            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultOutputDevice, propertySize, &newDeviceID);
+            AudioHardwareSetProperty(kAudioHardwarePropertyDefaultSystemOutputDevice, propertySize, &newDeviceID);
+            break;
+        default:
+            break;
+    }
+
+    addr.mScope = kAudioObjectPropertyScopeGlobal;
+    addr.mElement = kAudioObjectPropertyElementMaster;
+    AudioObjectSetPropertyData(kAudioObjectSystemObject, &addr, 0, NULL, propertySize, &newDeviceID);
 }
 
 OSStatus setMute(ASDeviceType typeRequested, ASMuteType muteRequested) {
@@ -581,51 +631,58 @@ OSStatus setMute(ASDeviceType typeRequested, ASMuteType muteRequested) {
 }
 
 void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
-	UInt32 propertySize;
-	AudioDeviceID dev_array[64];
-	int numberOfDevices = 0;
-	ASDeviceType device_type;
-	char deviceName[256];
-	
-	AudioHardwareGetPropertyInfo(kAudioHardwarePropertyDevices, &propertySize, NULL);
-	
-	AudioHardwareGetProperty(kAudioHardwarePropertyDevices, &propertySize, dev_array);
-	numberOfDevices = (propertySize / sizeof(AudioDeviceID));
-	
-	for(int i = 0; i < numberOfDevices; ++i) {
+    UInt32 propertySize;
+    AudioObjectPropertyAddress propertyAddress;
+    AudioDeviceID dev_array[64];
+    int numberOfDevices = 0;
+    ASDeviceType device_type;
+    char deviceName[256];
 
-		switch(typeRequested) {
-			case kAudioTypeInput:
-				if (!isAnInputDevice(dev_array[i])) continue;
+    propertyAddress.mSelector = kAudioHardwarePropertyDevices;
+    propertyAddress.mScope = kAudioObjectPropertyScopeGlobal;
+    propertyAddress.mElement = kAudioObjectPropertyElementMaster;
+
+    propertySize = 0;
+    AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize);
+    numberOfDevices = propertySize / sizeof(AudioDeviceID);
+
+    AudioObjectGetPropertyData(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize, dev_array);
+
+    for (int i = 0; i < numberOfDevices; ++i) {
+        switch (typeRequested) {
+            case kAudioTypeInput:
+                if (!isAnInputDevice(dev_array[i]))
+                    continue;
                 device_type = kAudioTypeInput;
-				break;
-                
-			case kAudioTypeOutput:
-				if (!isAnOutputDevice(dev_array[i])) continue;
+                break;
+            case kAudioTypeOutput:
+                if (!isAnOutputDevice(dev_array[i]))
+                    continue;
                 device_type = kAudioTypeOutput;
-				break;
-
-			case kAudioTypeSystemOutput:
+                break;
+            case kAudioTypeSystemOutput:
                 device_type = getDeviceType(dev_array[i]);
-				if (device_type != kAudioTypeOutput) continue;
-				break;
-            default: break;
-		}
+                if (device_type != kAudioTypeOutput)
+                    continue;
+                break;
+            default:
+                break;
+        }
 
-		getDeviceName(dev_array[i], deviceName);
+        getDeviceName(dev_array[i], deviceName);
 
-		switch(outputRequested) {
-			case kFormatHuman:
-			    printf("%s\n",deviceName);
-				break;
-			case kFormatCLI:
-				printf("%s,%s,%u,%s\n",deviceName,deviceTypeName(device_type),dev_array[i],getDeviceUID(dev_array[i]));
-				break;
-			case kFormatJSON:
-				printf("{\"name\": \"%s\", \"type\": \"%s\", \"id\": \"%u\", \"uid\": \"%s\"}\n",deviceName,deviceTypeName(device_type),dev_array[i],getDeviceUID(dev_array[i]));
-				break;
-			default:
-				break;
-			}
-	}
+        switch (outputRequested) {
+            case kFormatHuman:
+                printf("%s\n", deviceName);
+                break;
+            case kFormatCLI:
+                printf("%s,%s,%u,%s\n", deviceName, deviceTypeName(device_type), dev_array[i], getDeviceUID(dev_array[i]));
+                break;
+            case kFormatJSON:
+                printf("{\"name\": \"%s\", \"type\": \"%s\", \"id\": \"%u\", \"uid\": \"%s\"}\n", deviceName, deviceTypeName(device_type), dev_array[i], getDeviceUID(dev_array[i]));
+                break;
+            default:
+                break;
+        }
+    }
 }
