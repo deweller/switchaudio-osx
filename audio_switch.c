@@ -36,7 +36,7 @@ void showUsage(const char * appName) {
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
            "  -t type        : device type (input/output/system/all).  Defaults to output.\n"
-           "  -m mute        : sets the mute status (mute/unmute/toggle).\n"
+           "  -m mute        : sets the mute status (mute/unmute/toggle).  For input/output only.\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
            "  -u device_uid  : sets the audio device to the given device by uid or a substring of the uid\n"
@@ -227,7 +227,6 @@ int runAudioSwitch(int argc, const char * argv[]) {
 		switch(typeRequested) {
 			case kAudioTypeInput: 
             case kAudioTypeOutput:
-			case kAudioTypeSystemOutput:
 				status = setMute(typeRequested, muteRequested);
 				if(status != noErr) {
 					printf("Failed setting mute state. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
@@ -248,6 +247,10 @@ int runAudioSwitch(int argc, const char * argv[]) {
 				if (anyStatusError) {
 					return 1;
 				}
+				break;
+			case kAudioTypeSystemOutput:
+				printf("audio device \"%s\" may not be muted\n", deviceTypeName(typeRequested));
+				return 1;
 				break;
 		}
 		return 0;
