@@ -280,13 +280,27 @@ const char * getDeviceUID(AudioDeviceID deviceID) {
     
     propertyAddress.mSelector = kAudioDevicePropertyDeviceUID;
     
-    AudioObjectGetPropertyData(deviceID, &propertyAddress, 0, NULL, &dataSize, &deviceUID);
-            
-    const char * deviceUID_string = CFStringGetCStringPtr(deviceUID, kCFStringEncodingASCII);
+    OSStatus err = AudioObjectGetPropertyData(deviceID, &propertyAddress, 0, NULL, &dataSize, &deviceUID);
+    if (err != 0) {
+        // Handle error
+        return "";
+    }
+
+    const char * deviceUID_string = NULL;
+    CFIndex length = CFStringGetLength(deviceUID);
+    CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
+    deviceUID_string = (char *)malloc(maxSize);
+
+    if (deviceUID_string) {
+        if (CFStringGetCString(deviceUID, deviceUID_string, maxSize, kCFStringEncodingUTF8)) {
+            CFRelease(deviceUID);
+            return deviceUID_string;
+        }
+        free((void *)deviceUID_string);
+    }
     
     CFRelease(deviceUID);
-    
-    return deviceUID_string;
+    return "";
 }
 
 AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, ASDeviceType typeRequested) {
