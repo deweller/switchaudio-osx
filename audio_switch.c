@@ -321,12 +321,13 @@ AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, AS
         }
 
         char deviceUID[256];
+        CFStringRef deviceUIDRef = NULL;
         propertyAddress.mSelector = kAudioDevicePropertyDeviceUID;
         propertyAddress.mScope = kAudioObjectPropertyScopeGlobal;
         propertyAddress.mElement = dev_array[i];
-        propertySize = sizeof(deviceUID);
-        AudioObjectGetPropertyData(dev_array[i], &propertyAddress, 0, NULL, &propertySize, &deviceUID);
-
+        propertySize = sizeof(deviceUIDRef);
+        AudioObjectGetPropertyData(dev_array[i], &propertyAddress, 0, NULL, &propertySize, &deviceUIDRef);
+        CFStringGetCString(deviceUIDRef, deviceUID, sizeof(deviceUID), CFStringGetSystemEncoding());
         if (strstr(deviceUID, requestedDeviceUID) != NULL) {
             return dev_array[i];
         }
