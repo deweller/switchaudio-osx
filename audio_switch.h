@@ -87,5 +87,7 @@ int setOneDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
 int setAllDevicesByName(char * requestedDeviceName);
 int cycleNext(ASDeviceType typeRequested);
 int cycleNextForOneDevice(ASDeviceType typeRequested);
-OSStatus setMute(ASDeviceType typeRequested, ASMuteType mute);
+OSStatus setMute(ASDeviceType typeRequested, ASMuteType mute, bool muteAll);
+OSStatus setMuteOne(ASDeviceType typeRequested, ASMuteType muteRequested, AudioDeviceID deviceID);
+int getAllDevices(AudioDeviceID* deviceIDs);
 void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested);

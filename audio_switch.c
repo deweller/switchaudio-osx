@@ -36,7 +36,7 @@ void showUsage(const char * appName) {
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
            "  -t type        : device type (input/output/system/all).  Defaults to output.\n"
-           "  -m mute        : sets the mute status (mute/unmute/toggle).  For input/output only.\n"
+           "  -m mute        : sets the mute status (mute/mute-all/unmute/unmute-all/toggle).  For input/output only.\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
            "  -u device_uid  : sets the audio device to the given device by uid or a substring of the uid\n"
@@ -52,6 +52,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
     ASDeviceType typeRequested = kAudioTypeUnknown;
     ASOutputType outputRequested = kFormatHuman;
     ASMuteType muteRequested = kToggleMute;
+    bool muteAll = false;
     int function = 0;
     int result = 0;
 
@@ -96,13 +97,19 @@ int runAudioSwitch(int argc, const char * argv[]) {
                     muteRequested = kUnmute;
                 } else if (strcmp(optarg, "toggle") == 0) {
                     muteRequested = kToggleMute;
+                } else if (strcmp(optarg, "mute-all") == 0) {
+                    muteRequested = kMute;
+                    muteAll = true;
+                } else if (strcmp(optarg, "unmute-all") == 0) {
+                    muteRequested = kUnmute;
+                    muteAll = true;
                 } else {
                     printf("Invalid mute operation type \"%s\" specified.\n", optarg);
                     showUsage(argv[0]);
                     return 1;
                 }
                 break;
-                
+
             case 'n':
                 // cycle to the next audio device
                 function = kFunctionCycleNext;
@@ -206,23 +213,23 @@ int runAudioSwitch(int argc, const char * argv[]) {
         OSStatus status;
         bool anyStatusError = false;
         if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeInput;
-        
+
         switch(typeRequested) {
             case kAudioTypeInput: 
             case kAudioTypeOutput:
-                status = setMute(typeRequested, muteRequested);
+                status = setMute(typeRequested, muteRequested, muteAll);
                 if(status != noErr) {
                     printf("Failed setting mute state. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
                     return 1;
                 }
                 break;
             case kAudioTypeAll:
-                status = setMute(kAudioTypeInput, muteRequested);
+                status = setMute(kAudioTypeInput, muteRequested, muteAll);
                 if(status != noErr) {
                     printf("Failed setting mute state for input. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
                     anyStatusError = true;
                 }
-                status = setMute(kAudioTypeOutput, muteRequested);
+                status = setMute(kAudioTypeOutput, muteRequested, muteAll);
                 if(status != noErr) {
                     printf("Failed setting mute state for output. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
                     anyStatusError = true;
@@ -691,12 +698,56 @@ int cycleNextForOneDevice(ASDeviceType typeRequested) {
 }
 
 
-OSStatus setMute(ASDeviceType typeRequested, ASMuteType muteRequested) {
+OSStatus setMute(ASDeviceType typeRequested, ASMuteType muteRequested, bool muteAll) {
+    AudioDeviceID deviceIDs[64];
+    int numberOfDevices = 0;
     AudioDeviceID currentDeviceID = kAudioDeviceUnknown;
-    char currentDeviceName[256];
+    OSStatus status;
+
+    if (muteAll) {
+        numberOfDevices = getAllDevices(deviceIDs);
+        for (int i = 0; i < numberOfDevices; ++i) {
+            switch (typeRequested) {
+                case kAudioTypeInput:
+                    if (!isAnInputDevice(deviceIDs[i]))
+                        continue;
+                    status = setMuteOne(typeRequested, muteRequested, deviceIDs[i]);
+                    if (status != noErr) {
+                        return status;
+                    }
+                    break;
+                case kAudioTypeOutput:
+                    if (!isAnOutputDevice(deviceIDs[i]))
+                        continue;
+                    status = setMuteOne(typeRequested, muteRequested, deviceIDs[i]);
+                    if (status != noErr) {
+                        return status;
+                    }
+                    break;
+                case kAudioTypeSystemOutput:
+                    if (getDeviceType(deviceIDs[i]) != kAudioTypeOutput)
+                        continue;
+                    status = setMuteOne(typeRequested, muteRequested, deviceIDs[i]);
+                    if (status != noErr) {
+                        return status;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return noErr;
+    } else {
+        currentDeviceID = getCurrentlySelectedDeviceID(typeRequested);
+        return setMuteOne(typeRequested, muteRequested, currentDeviceID);
+    }
+}
+
+OSStatus setMuteOne(ASDeviceType typeRequested, ASMuteType muteRequested, AudioDeviceID deviceID) {
+    char deviceName[256];
     
-    currentDeviceID = getCurrentlySelectedDeviceID(typeRequested);
-    getDeviceName(currentDeviceID, currentDeviceName);
+    getDeviceName(deviceID, deviceName);
     
     UInt32 scope = kAudioObjectPropertyScopeInput;
     
@@ -724,29 +775,27 @@ OSStatus setMute(ASDeviceType typeRequested, ASMuteType muteRequested) {
     OSStatus status;
     if (muteRequested == kToggleMute) {
         UInt32 dataSize;
-        status = AudioObjectGetPropertyDataSize(currentDeviceID, &propertyAddress, 0, NULL, &dataSize);
+        status = AudioObjectGetPropertyDataSize(deviceID, &propertyAddress, 0, NULL, &dataSize);
         if (status != noErr) {
             return status;
         }
-        status = AudioObjectGetPropertyData(currentDeviceID, &propertyAddress, 0, NULL, &propertySize, &muted);
+        status = AudioObjectGetPropertyData(deviceID, &propertyAddress, 0, NULL, &propertySize, &muted);
         if (status != noErr) {
             return status;
         }
         muted = !muted;
     }
 
-    printf("Setting device %s to %s\n", currentDeviceName, muted ? "muted": "unmuted");
+    printf("Setting device %s to %s\n", deviceName, muted ? "muted": "unmuted");
 
-    return AudioObjectSetPropertyData(currentDeviceID, &propertyAddress, 0, NULL, propertySize, &muted);
+    return AudioObjectSetPropertyData(deviceID, &propertyAddress, 0, NULL, propertySize, &muted);
 }
 
-void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
+int getAllDevices(AudioDeviceID* deviceIDs) {
     UInt32 propertySize;
     AudioObjectPropertyAddress propertyAddress;
-    AudioDeviceID dev_array[64];
+
     int numberOfDevices = 0;
-    ASDeviceType device_type;
-    char deviceName[256];
 
     propertyAddress.mSelector = kAudioHardwarePropertyDevices;
     propertyAddress.mScope = kAudioObjectPropertyScopeGlobal;
@@ -756,40 +805,52 @@ void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
     AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize);
     numberOfDevices = propertySize / sizeof(AudioDeviceID);
 
-    AudioObjectGetPropertyData(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize, dev_array);
+    AudioObjectGetPropertyData(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize, deviceIDs);
+
+    return numberOfDevices;
+}
+
+void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
+    AudioDeviceID deviceIDs[64];
+    int numberOfDevices = 0;
+
+    ASDeviceType deviceType;
+    char deviceName[256];
+
+    numberOfDevices = getAllDevices(deviceIDs);
 
     for (int i = 0; i < numberOfDevices; ++i) {
         switch (typeRequested) {
             case kAudioTypeInput:
-                if (!isAnInputDevice(dev_array[i]))
+                if (!isAnInputDevice(deviceIDs[i]))
                     continue;
-                device_type = kAudioTypeInput;
+                deviceType = kAudioTypeInput;
                 break;
             case kAudioTypeOutput:
-                if (!isAnOutputDevice(dev_array[i]))
+                if (!isAnOutputDevice(deviceIDs[i]))
                     continue;
-                device_type = kAudioTypeOutput;
+                deviceType = kAudioTypeOutput;
                 break;
             case kAudioTypeSystemOutput:
-                device_type = getDeviceType(dev_array[i]);
-                if (device_type != kAudioTypeOutput)
+                deviceType = getDeviceType(deviceIDs[i]);
+                if (deviceType != kAudioTypeOutput)
                     continue;
                 break;
             default:
                 break;
         }
 
-        getDeviceName(dev_array[i], deviceName);
+        getDeviceName(deviceIDs[i], deviceName);
 
         switch (outputRequested) {
             case kFormatHuman:
                 printf("%s\n", deviceName);
                 break;
             case kFormatCLI:
-                printf("%s,%s,%u,%s\n", deviceName, deviceTypeName(device_type), dev_array[i], getDeviceUID(dev_array[i]));
+                printf("%s,%s,%u,%s\n", deviceName, deviceTypeName(deviceType), deviceIDs[i], getDeviceUID(deviceIDs[i]));
                 break;
             case kFormatJSON:
-                printf("{\"name\": \"%s\", \"type\": \"%s\", \"id\": \"%u\", \"uid\": \"%s\"}\n", deviceName, deviceTypeName(device_type), dev_array[i], getDeviceUID(dev_array[i]));
+                printf("{\"name\": \"%s\", \"type\": \"%s\", \"id\": \"%u\", \"uid\": \"%s\"}\n", deviceName, deviceTypeName(deviceType), deviceIDs[i], getDeviceUID(deviceIDs[i]));
                 break;
             default:
                 break;
