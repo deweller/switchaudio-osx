@@ -36,9 +36,7 @@ void showUsage(const char * appName) {
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
            "  -t type        : device type (input/output/system/all).  Defaults to output.\n"
-           "  -m mute        : sets the mute status (mute/unmute/toggle).  For input/output only.\n"
-           "  -M mute-all    : sets the mute status to mute for all devices of specified device type\n"
-           "  -U unmute-all  : sets the mute status to unmute for all devices of specified device type\n"
+           "  -m mute        : sets the mute status (mute/mute-all/unmute/unmute-all/toggle).  For input/output only.\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
            "  -u device_uid  : sets the audio device to the given device by uid or a substring of the uid\n"
@@ -59,7 +57,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
     int result = 0;
 
     int c;
-    while ((c = getopt(argc, (char **)argv, "hacm:MUnt:f:i:u:s:")) != -1) {
+    while ((c = getopt(argc, (char **)argv, "hacm:nt:f:i:u:s:")) != -1) {
         switch (c) {
             case 'f':
                 // format
@@ -99,23 +97,17 @@ int runAudioSwitch(int argc, const char * argv[]) {
                     muteRequested = kUnmute;
                 } else if (strcmp(optarg, "toggle") == 0) {
                     muteRequested = kToggleMute;
+                } else if (strcmp(optarg, "mute-all") == 0) {
+                    muteRequested = kMute;
+                    muteAll = true;
+                } else if (strcmp(optarg, "unmute-all") == 0) {
+                    muteRequested = kUnmute;
+                    muteAll = true;
                 } else {
                     printf("Invalid mute operation type \"%s\" specified.\n", optarg);
                     showUsage(argv[0]);
                     return 1;
                 }
-                break;
-
-            case 'M':
-                function = kFunctionMute;
-                muteRequested = kMute;
-                muteAll = true;
-                break;
-
-            case 'U':
-                function = kFunctionMute;
-                muteRequested = kUnmute;
-                muteAll = true;
                 break;
 
             case 'n':
