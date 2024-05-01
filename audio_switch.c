@@ -715,7 +715,11 @@ OSStatus setMute(ASDeviceType typeRequested, ASMuteType muteRequested) {
     AudioObjectPropertyAddress propertyAddress = {
         .mSelector  = kAudioDevicePropertyMute,
         .mScope     = scope,
+        #ifndef MAC_OS_VERSION_12_0
+        .mElement   = kAudioObjectPropertyElementMaster,
+        #else
         .mElement   = kAudioObjectPropertyElementMain,
+        #endif
     };
 
     UInt32 muted = (UInt32)muteRequested;
