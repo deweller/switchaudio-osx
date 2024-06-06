@@ -33,8 +33,17 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <CoreServices/CoreServices.h>
 #include <CoreAudio/CoreAudio.h>
 #include <CoreAudio/AudioHardware.h>
+#include <AvailabilityMacros.h>
+#ifndef MAC_OS_X_VERSION_10_8 // fallbacks for < 10.8
+#define kAudioObjectPropertyScopeInput kAudioDevicePropertyScopeInput
+#define kAudioObjectPropertyScopeOutput kAudioDevicePropertyScopeOutput
+#else
 #include <CoreAudio/AudioHardwareBase.h>
+#endif
 
+#ifndef kAudioObjectPropertyElementMain
+#define kAudioObjectPropertyElementMain kAudioObjectPropertyElementMaster
+#endif
 
 typedef enum {
 	kAudioTypeUnknown = 0,
