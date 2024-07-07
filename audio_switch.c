@@ -31,16 +31,27 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 
 void showUsage(const char * appName) {
-    printf("Usage: %s [-a] [-c] [-t type] [-n] -s device_name | -i device_id | -u device_uid\n"
+    printf("Usage: %s [-a] [-c] [-t type] [-n] [-m] [-l] -s device_name | -i device_id | -u device_uid\n"
            "  -a             : shows all devices\n"
            "  -c             : shows current device\n\n"
            "  -f format      : output format (cli/human/json). Defaults to human.\n"
            "  -t type        : device type (input/output/system/all).  Defaults to output.\n"
+           "  -l             : sets the speaker layout (5_1_4/7_1_2/9_1_6).  For output only.\n"
+           "  -p             : comma delimited list of channel values starting with 0.  For output only.\n"
            "  -m mute        : sets the mute status (mute/unmute/toggle).  For input/output only.\n"
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
            "  -u device_uid  : sets the audio device to the given device by uid or a substring of the uid\n"
-           "  -s device_name : sets the audio device to the given device by name\n\n",appName);
+           "  -s device_name : sets the audio device to the given device by name\n"
+           "\n"
+           "5.1.4 Atmos L R C LFE Ls Rs Vhl Vhr Ltr Rtr\n"
+           "7.1.2 Atmos L R C LFE Ls Rs Rls Rrs Ltm Rtm\n"
+           "9.1.6 Atmos L R C LFE Ls Rs Rls Rrs Lw Rw Vhl Vhr Ltm Rtm Ltr Rtr\n"
+           "\n"
+           "Examples\n"
+           "./AudioSwitcher -l 5_1_4 -p 0,1,5,4,2,3,6,7,8,9 -t output\n"
+           "\n"
+           ,appName);
 }
 
 int runAudioSwitch(int argc, const char * argv[]) {
@@ -52,11 +63,16 @@ int runAudioSwitch(int argc, const char * argv[]) {
     ASDeviceType typeRequested = kAudioTypeUnknown;
     ASOutputType outputRequested = kFormatHuman;
     ASMuteType muteRequested = kToggleMute;
+    ASLayoutType layoutRequested = kL5_1_4;
     int function = 0;
     int result = 0;
+    const char s[2] = ",";
+    char *token;
+    int channelNumber[16] = {0, 1, 2, 3, 4, 5 ,6 ,7, 8, 9, 10, 11, 12, 13, 14, 15};
+    int i;
 
     int c;
-    while ((c = getopt(argc, (char **)argv, "hacm:nt:f:i:u:s:")) != -1) {
+    while ((c = getopt(argc, (char **)argv, "hacl:m:nt:f:i:u:s:p:")) != -1) {
         switch (c) {
             case 'f':
                 // format
@@ -103,6 +119,35 @@ int runAudioSwitch(int argc, const char * argv[]) {
                 }
                 break;
                 
+            case 'l':
+                // set the speaker layout to 5.1.4
+                function = kFunctionLayout;
+                if (strcmp(optarg, "5_1_4") == 0) {
+                    layoutRequested = kL5_1_4;
+                } else if (strcmp(optarg, "7_1_2") == 0) {
+                    layoutRequested = kL7_1_2;
+                } else if (strcmp(optarg, "9_1_6") == 0) {
+                    layoutRequested = kL9_1_6;
+                } else {
+                    printf("Invalid Layout operation type \"%s\" specified.\n", optarg);
+                    showUsage(argv[0]);
+                    return 1;
+                }
+                break;
+
+            case 'p':
+                token = strtok(optarg, s);
+                i=0;
+                while( token != NULL ) {
+                    channelNumber[i] = atoi(token);
+                    i++;
+                    if (i>15) {
+                        break;
+                    }
+                    token = strtok(NULL, s);
+                }
+                break;
+
             case 'n':
                 // cycle to the next audio device
                 function = kFunctionCycleNext;
@@ -202,6 +247,39 @@ int runAudioSwitch(int argc, const char * argv[]) {
         sprintf(printableDeviceName, "Device with UID: %s", getDeviceUID(chosenDeviceID));
     }
 
+    if (function == kFunctionLayout) {
+        OSStatus status;
+        if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeInput;
+
+        switch(typeRequested) {
+            case kAudioTypeOutput:
+                status = setSpeakerLayout(typeRequested, layoutRequested, channelNumber);
+                if(status != noErr) {
+                    printf("Failed setting speaker layout. Error: %d (%s)", status, GetMacOSStatusErrorString(status));
+                    return 1;
+                }
+                break;
+            case kAudioTypeInput:
+                printf("audio device \"%s\" is not an output device\n", deviceTypeName(typeRequested));
+                return 0;
+                break;
+            case kAudioTypeAll:
+                printf("audio device \"%s\" is not an output device\n", deviceTypeName(typeRequested));
+                return 0;
+                break;
+            case kAudioTypeSystemOutput:
+                printf("audio device \"%s\" is not an output device\n", deviceTypeName(typeRequested));
+                return 0;
+                break;
+            case kAudioTypeUnknown:
+                printf("audio device \"%s\" is unknown\n", deviceTypeName(typeRequested));
+                return 0;
+                break;
+        }
+        return 0;
+    }
+
+
     if (function == kFunctionMute) {
         OSStatus status;
         bool anyStatusError = false;
@@ -234,6 +312,10 @@ int runAudioSwitch(int argc, const char * argv[]) {
             case kAudioTypeSystemOutput:
                 printf("audio device \"%s\" may not be muted\n", deviceTypeName(typeRequested));
                 return 1;
+                break;
+            case kAudioTypeUnknown:
+                printf("audio device \"%s\" is unknown\n", deviceTypeName(typeRequested));
+                return 0;
                 break;
         }
         return 0;
@@ -688,6 +770,95 @@ int cycleNextForOneDevice(ASDeviceType typeRequested) {
     }
     return result;
 
+}
+
+OSStatus setSpeakerLayout(ASDeviceType typeRequested, ASLayoutType layoutRequested, int *channelNumber) {
+    AudioDeviceID currentDeviceID = kAudioDeviceUnknown;
+    char currentDeviceName[256];
+    UInt32 propertySize;
+    char strLayoutRequested[256];
+
+    currentDeviceID = getCurrentlySelectedDeviceID(typeRequested);
+    getDeviceName(currentDeviceID, currentDeviceName);
+
+    AudioObjectPropertyAddress propertyAddress = {
+        .mSelector  = kAudioDevicePropertyPreferredChannelLayout,
+        .mScope     = kAudioDevicePropertyScopeOutput,
+        .mElement   = kAudioObjectPropertyElementMaster,
+    };
+
+    if (AudioObjectHasProperty(currentDeviceID, &propertyAddress)) {
+        propertySize = 0;
+
+        AudioObjectGetPropertyDataSize(currentDeviceID, &propertyAddress, 0, NULL, &propertySize);
+        AudioChannelLayout* layout = (AudioChannelLayout*)malloc(propertySize);
+
+        //layout->mChannelLayoutTag = kAudioChannelLayoutTag_Atmos_5_1_4;
+        switch (layoutRequested) {
+            case kL5_1_4:
+                sprintf(strLayoutRequested, "5.1.4 Atmos L R C LFE Ls Rs Vhl Vhr Ltr Rtr");
+                layout->mNumberChannelDescriptions = 10;
+
+                layout->mChannelDescriptions[channelNumber[0]].mChannelLabel = kAudioChannelLabel_Left;
+                layout->mChannelDescriptions[channelNumber[1]].mChannelLabel = kAudioChannelLabel_Right;
+                layout->mChannelDescriptions[channelNumber[2]].mChannelLabel = kAudioChannelLabel_Center;
+                layout->mChannelDescriptions[channelNumber[3]].mChannelLabel = kAudioChannelLabel_LFEScreen;
+                layout->mChannelDescriptions[channelNumber[4]].mChannelLabel = kAudioChannelLabel_LeftSurround;
+                layout->mChannelDescriptions[channelNumber[5]].mChannelLabel = kAudioChannelLabel_RightSurround;
+                layout->mChannelDescriptions[channelNumber[6]].mChannelLabel = kAudioChannelLabel_VerticalHeightLeft;
+                layout->mChannelDescriptions[channelNumber[7]].mChannelLabel = kAudioChannelLabel_VerticalHeightRight;
+                layout->mChannelDescriptions[channelNumber[8]].mChannelLabel = kAudioChannelLabel_LeftTopRear;
+                layout->mChannelDescriptions[channelNumber[9]].mChannelLabel = kAudioChannelLabel_RightTopRear;
+                break;
+
+            case kL7_1_2:
+                sprintf(strLayoutRequested, "7.1.2 Atmos L R C LFE Ls Rs Rls Rrs Ltm Rtm");
+                layout->mNumberChannelDescriptions = 10;
+
+                layout->mChannelDescriptions[channelNumber[0]].mChannelLabel = kAudioChannelLabel_Left;
+                layout->mChannelDescriptions[channelNumber[1]].mChannelLabel = kAudioChannelLabel_Right;
+                layout->mChannelDescriptions[channelNumber[2]].mChannelLabel = kAudioChannelLabel_Center;
+                layout->mChannelDescriptions[channelNumber[3]].mChannelLabel = kAudioChannelLabel_LFEScreen;
+                layout->mChannelDescriptions[channelNumber[4]].mChannelLabel = kAudioChannelLabel_LeftSurround;
+                layout->mChannelDescriptions[channelNumber[5]].mChannelLabel = kAudioChannelLabel_RightSurround;
+                layout->mChannelDescriptions[channelNumber[6]].mChannelLabel = kAudioChannelLabel_RearSurroundLeft;
+                layout->mChannelDescriptions[channelNumber[7]].mChannelLabel = kAudioChannelLabel_RearSurroundRight;
+                layout->mChannelDescriptions[channelNumber[8]].mChannelLabel = kAudioChannelLabel_LeftTopMiddle;
+                layout->mChannelDescriptions[channelNumber[9]].mChannelLabel = kAudioChannelLabel_RightTopMiddle;
+                break;
+            case kL9_1_6:
+                sprintf(strLayoutRequested, "9.1.6 Atmos L R C LFE Ls Rs Rls Rrs Lw Rw Vhl Vhr Ltm Rtm Ltr Rtr");
+                layout->mNumberChannelDescriptions = 16;
+
+                layout->mChannelDescriptions[channelNumber[0]].mChannelLabel = kAudioChannelLabel_Left;
+                layout->mChannelDescriptions[channelNumber[1]].mChannelLabel = kAudioChannelLabel_Right;
+                layout->mChannelDescriptions[channelNumber[2]].mChannelLabel = kAudioChannelLabel_Center;
+                layout->mChannelDescriptions[channelNumber[3]].mChannelLabel = kAudioChannelLabel_LFEScreen;
+                layout->mChannelDescriptions[channelNumber[4]].mChannelLabel = kAudioChannelLabel_LeftSurround;
+                layout->mChannelDescriptions[channelNumber[5]].mChannelLabel = kAudioChannelLabel_RightSurround;
+                layout->mChannelDescriptions[channelNumber[6]].mChannelLabel = kAudioChannelLabel_RearSurroundLeft;
+                layout->mChannelDescriptions[channelNumber[7]].mChannelLabel = kAudioChannelLabel_RearSurroundRight;
+                layout->mChannelDescriptions[channelNumber[8]].mChannelLabel = kAudioChannelLabel_LeftWide;
+                layout->mChannelDescriptions[channelNumber[9]].mChannelLabel = kAudioChannelLabel_RightWide;
+                layout->mChannelDescriptions[channelNumber[10]].mChannelLabel = kAudioChannelLabel_VerticalHeightLeft;
+                layout->mChannelDescriptions[channelNumber[11]].mChannelLabel = kAudioChannelLabel_VerticalHeightRight;
+                layout->mChannelDescriptions[channelNumber[12]].mChannelLabel = kAudioChannelLabel_LeftTopMiddle;
+                layout->mChannelDescriptions[channelNumber[13]].mChannelLabel = kAudioChannelLabel_RightTopMiddle;
+                layout->mChannelDescriptions[channelNumber[14]].mChannelLabel = kAudioChannelLabel_LeftTopRear;
+                layout->mChannelDescriptions[channelNumber[15]].mChannelLabel = kAudioChannelLabel_RightTopRear;
+                break;
+            default:
+                return 0;
+        }
+
+        for (UInt32 i = 0; i < layout->mNumberChannelDescriptions; i++) {
+            layout->mChannelDescriptions[i].mChannelFlags = kAudioChannelFlags_AllOff;
+        }
+
+        printf("Setting device %s to %s\n", currentDeviceName, strLayoutRequested);
+        return AudioObjectSetPropertyData(currentDeviceID, &propertyAddress, 0, NULL, propertySize, layout);
+    }
+    return 0;
 }
 
 

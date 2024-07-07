@@ -56,6 +56,13 @@ typedef enum {
 	kToggleMute = 2,
 } ASMuteType;
 
+typedef enum {
+    kL5_1_4 = 0,
+    kL7_1_2 = 1,
+    kL9_1_6 = 2,
+}
+ASLayoutType;
+
 enum {
 	kFunctionSetDeviceByName = 1,
 	kFunctionShowHelp        = 2,
@@ -65,6 +72,7 @@ enum {
     kFunctionSetDeviceByID   = 6,
     kFunctionSetDeviceByUID  = 7,
 	kFunctionMute            = 8,
+    kFunctionLayout          = 9,
 };
 
 
@@ -88,4 +96,5 @@ int setAllDevicesByName(char * requestedDeviceName);
 int cycleNext(ASDeviceType typeRequested);
 int cycleNextForOneDevice(ASDeviceType typeRequested);
 OSStatus setMute(ASDeviceType typeRequested, ASMuteType mute);
+OSStatus setSpeakerLayout(ASDeviceType typeRequested, ASLayoutType layoutRequested, int * channelNumber);
 void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested);
