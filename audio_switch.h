@@ -84,6 +84,8 @@ AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType type
 AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRequested);
 int setDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
 int setOneDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested);
+int setAlertsFollowMain(bool follow);
+bool getAlertsFollowMain(void);
 int setAllDevicesByName(char * requestedDeviceName);
 int cycleNext(ASDeviceType typeRequested);
 int cycleNextForOneDevice(ASDeviceType typeRequested);

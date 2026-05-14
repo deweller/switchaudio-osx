@@ -40,7 +40,9 @@ void showUsage(const char * appName) {
            "  -n             : cycles the audio device to the next one\n"
            "  -i device_id   : sets the audio device to the given device by id\n"
            "  -u device_uid  : sets the audio device to the given device by uid or a substring of the uid\n"
-           "  -s device_name : sets the audio device to the given device by name\n\n",appName);
+           "  -s device_name : sets the audio device to the given device by name\n\n"
+           "  -t system follow : restore alerts \"follow main output\" mode\n"
+           "                   (\"Selected sound output device\" in System Settings)\n\n",appName);
 }
 
 int runAudioSwitch(int argc, const char * argv[]) {
@@ -168,6 +170,20 @@ int runAudioSwitch(int argc, const char * argv[]) {
         if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeOutput;
         showCurrentlySelectedDeviceID(typeRequested, outputRequested);
         return 0;
+    }
+
+    if (typeRequested == kAudioTypeSystemOutput && optind < argc && strcmp(argv[optind], "follow") == 0) {
+        AudioDeviceID mainOutput = getCurrentlySelectedDeviceID(kAudioTypeOutput);
+        if (mainOutput != kAudioDeviceUnknown) {
+            setOneDevice(mainOutput, kAudioTypeSystemOutput);
+        }
+        result = setAlertsFollowMain(true);
+        if (result == 0) {
+            char name[256];
+            getDeviceName(mainOutput, name);
+            printf("alerts follow main output (\"%s\"); reopen System Settings to refresh UI\n", name);
+        }
+        return result;
     }
 
     if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeOutput;
@@ -588,6 +604,15 @@ int setOneDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
         printf("Failed to set %s", deviceTypeName(typeRequested));
     }
 
+    if (typeRequested == kAudioTypeOutput && getAlertsFollowMain()) {
+        AudioObjectPropertyAddress sysAddr = {
+            kAudioHardwarePropertyDefaultSystemOutputDevice,
+            kAudioObjectPropertyScopeGlobal,
+            kAudioObjectPropertyElementMaster
+        };
+        AudioObjectSetPropertyData(kAudioObjectSystemObject, &sysAddr, 0, NULL, propertySize, &newDeviceID);
+    }
+
     return 0;
 }
 
@@ -795,4 +820,25 @@ void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
                 break;
         }
     }
+}
+
+int setAlertsFollowMain(bool follow) {
+    CFStringRef domain = CFSTR("com.apple.soundpref");
+    CFStringRef key = CFSTR("AlertsUseMainDevice");
+    CFBooleanRef value = follow ? kCFBooleanTrue : kCFBooleanFalse;
+    CFPreferencesSetValue(key, value, domain, kCFPreferencesCurrentUser, kCFPreferencesCurrentHost);
+    if (!CFPreferencesSynchronize(domain, kCFPreferencesCurrentUser, kCFPreferencesCurrentHost)) {
+        printf("Failed to write com.apple.soundpref preference\n");
+        return 1;
+    }
+    return 0;
+}
+
+bool getAlertsFollowMain(void) {
+    CFStringRef domain = CFSTR("com.apple.soundpref");
+    CFStringRef key = CFSTR("AlertsUseMainDevice");
+    Boolean valid = false;
+    Boolean result = CFPreferencesGetAppBooleanValue(key, domain, &valid);
+    if (!valid) return false;
+    return (bool)result;
 }
