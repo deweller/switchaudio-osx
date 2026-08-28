@@ -28,6 +28,7 @@ OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "audio_switch.h"
+#include <CoreAudio/CoreAudio.h>
 
 
 void showUsage(const char * appName) {
@@ -48,7 +49,7 @@ int runAudioSwitch(int argc, const char * argv[]) {
     char printableDeviceName[256];
     int requestedDeviceID;
     char requestedDeviceUID[256];
-    AudioDeviceID chosenDeviceID = kAudioDeviceUnknown;
+    AudioObjectID chosenDeviceID = kAudioDeviceUnknown;
     ASDeviceType typeRequested = kAudioTypeUnknown;
     ASOutputType outputRequested = kFormatHuman;
     ASMuteType muteRequested = kToggleMute;
@@ -166,7 +167,13 @@ int runAudioSwitch(int argc, const char * argv[]) {
     }
     if (function == kFunctionShowCurrent) {
         if (typeRequested == kAudioTypeUnknown) typeRequested = kAudioTypeOutput;
-        showCurrentlySelectedDeviceID(typeRequested, outputRequested);
+        if (typeRequested == kAudioTypeAll) {
+            showCurrentlySelectedDeviceID(kAudioTypeInput, outputRequested);
+            showCurrentlySelectedDeviceID(kAudioTypeOutput, outputRequested);
+        }
+        else {
+            showCurrentlySelectedDeviceID(typeRequested, outputRequested);
+        }
         return 0;
     }
 
@@ -266,7 +273,7 @@ const char * getDeviceUID(AudioDeviceID deviceID) {
     AudioObjectPropertyAddress propertyAddress = {
         kAudioHardwarePropertyDevices,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
     
     propertyAddress.mSelector = kAudioDevicePropertyDeviceUID;
@@ -294,8 +301,8 @@ const char * getDeviceUID(AudioDeviceID deviceID) {
     return "";
 }
 
-AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, ASDeviceType typeRequested) {
-    AudioObjectPropertyAddress propertyAddress = {kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMaster};
+AudioObjectID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, ASDeviceType typeRequested) {
+    AudioObjectPropertyAddress propertyAddress = {kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
     UInt32 propertySize;
     AudioDeviceID dev_array[64];
     int numberOfDevices = 0;
@@ -336,12 +343,13 @@ AudioDeviceID getRequestedDeviceIDFromUIDSubstring(char * requestedDeviceUID, AS
     return kAudioDeviceUnknown;
 }
 
-AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested) {
+AudioObjectID getCurrentlySelectedDeviceID(ASDeviceType typeRequested) {
     AudioObjectPropertyAddress address;
     address.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
     address.mScope = kAudioObjectPropertyScopeGlobal;
-    address.mElement = kAudioObjectPropertyElementMaster;
+    address.mElement = kAudioObjectPropertyElementMain;
 
+    // Missing case for type all
     switch (typeRequested) {
         case kAudioTypeInput:
             address.mSelector = kAudioHardwarePropertyDefaultInputDevice;
@@ -366,11 +374,12 @@ AudioDeviceID getCurrentlySelectedDeviceID(ASDeviceType typeRequested) {
     return deviceID;
 }
 
-void getDeviceName(AudioDeviceID deviceID, char* deviceName) {
+void getDeviceName(AudioObjectID deviceID, char* deviceName) {
+//    printf("deviceID to get deviceName from: %d\n", deviceID);
     AudioObjectPropertyAddress address = {
         kAudioDevicePropertyDeviceNameCFString,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
     CFStringRef cfDeviceName = NULL;
     UInt32 dataSize = sizeof(CFStringRef);
@@ -382,18 +391,18 @@ void getDeviceName(AudioDeviceID deviceID, char* deviceName) {
 }
 
 // returns kAudioTypeInput or kAudioTypeOutput
-ASDeviceType getDeviceType(AudioDeviceID deviceID) {
+ASDeviceType getDeviceType(AudioObjectID deviceID) {
     AudioObjectPropertyAddress address = {
         kAudioDevicePropertyStreams,
         kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
+        kAudioObjectPropertyElementMain
     };
     UInt32 dataSize = 0;
     OSStatus result = AudioObjectGetPropertyDataSize(deviceID, &address, 0, NULL, &dataSize);
     if (result == noErr && dataSize > 0) {
         return kAudioTypeOutput;
     }
-    address.mElement = kAudioObjectPropertyElementMaster + 1;
+    address.mElement = kAudioObjectPropertyElementMain + 1;
     result = AudioObjectGetPropertyDataSize(deviceID, &address, 0, NULL, &dataSize);
     if (result == noErr && dataSize > 0) {
         return kAudioTypeInput;
@@ -401,8 +410,8 @@ ASDeviceType getDeviceType(AudioDeviceID deviceID) {
     return kAudioTypeUnknown;
 }
 
-bool isAnOutputDevice(AudioDeviceID deviceID) {
-    AudioObjectPropertyAddress propertyAddress = {kAudioDevicePropertyStreams, kAudioDevicePropertyScopeOutput, kAudioObjectPropertyElementMaster};
+bool isAnOutputDevice(AudioObjectID deviceID) {
+    AudioObjectPropertyAddress propertyAddress = {kAudioDevicePropertyStreams, kAudioDevicePropertyScopeOutput, kAudioObjectPropertyElementMain};
     UInt32 dataSize = 0;
     OSStatus result = AudioObjectGetPropertyDataSize(deviceID, &propertyAddress, 0, NULL, &dataSize);
     if (result == noErr && dataSize > 0) {
@@ -411,10 +420,10 @@ bool isAnOutputDevice(AudioDeviceID deviceID) {
     return false;
 }
 
-bool isAnInputDevice(AudioDeviceID deviceID) {
-    AudioObjectPropertyAddress propertyAddress = {kAudioDevicePropertyStreams, kAudioDevicePropertyScopeInput, kAudioObjectPropertyElementMaster};
+bool isAnInputDevice(AudioObjectID deviceID) {
+    AudioObjectPropertyAddress propertyAddress = {kAudioDevicePropertyStreams, kAudioDevicePropertyScopeInput, kAudioObjectPropertyElementMain};
     UInt32 dataSize = 0;
-    OSStatus result = AudioObjectGetPropertyDataSize(deviceID, &propertyAddress, sizeof(AudioClassDescription), kAudioDevicePropertyScopeInput, &dataSize);
+    OSStatus result = AudioObjectGetPropertyDataSize(deviceID, &propertyAddress, sizeof(AudioClassDescription), NULL, &dataSize);
     if (result == noErr && dataSize > 0) {
         return kAudioTypeInput;
     }
@@ -435,6 +444,13 @@ char *deviceTypeName(ASDeviceType device_type) {
 void showCurrentlySelectedDeviceID(ASDeviceType typeRequested, ASOutputType outputRequested) {
     AudioDeviceID currentDeviceID = kAudioDeviceUnknown;
     char currentDeviceName[256];
+    
+    if(typeRequested == kAudioTypeInput) {
+        printf("Input: ");
+    }
+    else if (typeRequested == kAudioTypeOutput) {
+        printf("Output: ");
+    }
     
     currentDeviceID = getCurrentlySelectedDeviceID(typeRequested);
     getDeviceName(currentDeviceID, currentDeviceName);
@@ -458,7 +474,7 @@ AudioDeviceID getRequestedDeviceID(char * requestedDeviceName, ASDeviceType type
     AudioObjectPropertyAddress propertyAddress;
     propertyAddress.mSelector = kAudioHardwarePropertyDevices;
     propertyAddress.mScope = kAudioObjectPropertyScopeGlobal;
-    propertyAddress.mElement = kAudioObjectPropertyElementMaster;
+    propertyAddress.mElement = kAudioObjectPropertyElementMain;
     
     UInt32 propertySize;
     AudioDeviceID dev_array[64];
@@ -512,7 +528,7 @@ AudioDeviceID getNextDeviceID(AudioDeviceID currentDeviceID, ASDeviceType typeRe
 
     addr.mSelector = kAudioHardwarePropertyDevices;
     addr.mScope = kAudioObjectPropertyScopeGlobal;
-    addr.mElement = kAudioObjectPropertyElementMaster;
+    addr.mElement = kAudioObjectPropertyElementMain;
     UInt32 propertySize = 0;
     OSStatus err = AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &addr, 0, NULL, &propertySize);
     if (err != noErr) {
@@ -567,7 +583,7 @@ int setOneDevice(AudioDeviceID newDeviceID, ASDeviceType typeRequested) {
     OSStatus status;
 
     addr.mScope = kAudioObjectPropertyScopeGlobal;
-    addr.mElement = kAudioObjectPropertyElementMaster;
+    addr.mElement = kAudioObjectPropertyElementMain;
 
     switch(typeRequested) {
         case kAudioTypeInput:
@@ -598,7 +614,7 @@ int setAllDevicesByName(char * requestedDeviceName) {
     
     // input
     newDeviceID = getRequestedDeviceID(requestedDeviceName, kAudioTypeInput);
-    if (newDeviceID != nil) {
+    if (newDeviceID != NULL) {
         result = setOneDevice(newDeviceID, kAudioTypeInput);
         if (result != 0) {
             anyStatusError = true;
@@ -750,7 +766,7 @@ void showAllDevices(ASDeviceType typeRequested, ASOutputType outputRequested) {
 
     propertyAddress.mSelector = kAudioHardwarePropertyDevices;
     propertyAddress.mScope = kAudioObjectPropertyScopeGlobal;
-    propertyAddress.mElement = kAudioObjectPropertyElementMaster;
+    propertyAddress.mElement = kAudioObjectPropertyElementMain;
 
     propertySize = 0;
     AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &propertyAddress, 0, NULL, &propertySize);
